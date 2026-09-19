@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderTileBitmap, renderRoomBitmap, PALETTE_INDICES } from './pixelRenderer';
+import { grayDoorSide } from './grayDoors';
+import { TOURNAMENT_SETTINGS } from './renderer';
 import { PALETTE, NEUTRAL_PALETTE, AREAS_WITH_HEATED_PALETTE, paletteFor } from './palette';
 import { FULLY_VISIBLE, SHAPE_ONLY } from '../signature';
 import { loadRooms } from '../rooms';
@@ -241,5 +243,60 @@ describe('palette', () => {
   it('falls back to a neutral palette when the area is not being shown', () => {
     expect(paletteFor('Norfair', true)).toBe(PALETTE.Norfair);
     expect(paletteFor('Norfair', false)).toBe(NEUTRAL_PALETTE);
+  });
+});
+
+describe('gray doors', () => {
+  const rooms = loadRooms();
+  const find = (n: string) => rooms.find((r) => r.name === n)!;
+
+  /**
+   * Map Rando marks the 19 vanilla boss, miniboss and pirate doors gray from a hardcoded
+   * list, and the Community Race Season 5 preset has gray_doors: Visible. They are static,
+   * unlike the ammo and beam locks a seed assigns, so the trainer can show them.
+   */
+  it('marks the left door of Kraid Room gray', () => {
+    const kraid = find('Kraid Room');
+    const tile = kraid.tiles.find((t) => t.x === 0 && t.y === 1)!;
+    const shown = renderTileBitmap(kraid, tile, settings({ grayDoors: 'visible' }));
+    const hidden = renderTileBitmap(kraid, tile, settings({ grayDoors: 'hidden' }));
+    expect(shown).not.toEqual(hidden);
+    expect(shown.map((r) => r[0])).toContain(15);
+  });
+
+  it('leaves a room with no gray door untouched by the setting', () => {
+    const moat = find('The Moat');
+    const tile = moat.tiles[0]!;
+    expect(renderTileBitmap(moat, tile, settings({ grayDoors: 'visible' })))
+      .toEqual(renderTileBitmap(moat, tile, settings({ grayDoors: 'hidden' })));
+  });
+
+  it('marks exactly the 19 documented doors across the whole game', () => {
+    let marked = 0;
+    for (const room of rooms) {
+      for (const tile of room.tiles) {
+        for (const side of ['left', 'right', 'top', 'bottom'] as const) {
+          if (grayDoorSide(room.id, tile.x, tile.y, side)) marked += 1;
+        }
+      }
+    }
+    expect(marked).toBe(19);
+  });
+
+  it('draws a gray door over the edge that was there', () => {
+    const croc = find("Crocomire's Room");
+    const tile = croc.tiles.find((t) => t.x === 3 && t.y === 0)!;
+    const b = renderTileBitmap(croc, tile, settings({ grayDoors: 'visible' }));
+    expect(b[0]).toContain(15);   // the top edge carries the lock
+  });
+});
+
+describe('tournament settings', () => {
+  it('matches the Community Race Season 5 preset', () => {
+    expect(TOURNAMENT_SETTINGS).toMatchObject({
+      blueDoors: 'visible', grayDoors: 'visible',
+      heat: 'visible', water: 'visible', lava: 'visible', acid: 'visible',
+      walls: 'enhanced', items: 'visible',
+    });
   });
 });

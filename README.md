@@ -19,6 +19,16 @@ npm run build        # typecheck + production build
 Deployment is automatic: a push to `main` runs the tests, and only a green suite gets built
 and published to GitHub Pages.
 
+The map is drawn exactly as a **Community Race Season 5** seed draws it — Map Rando's current
+tournament preset. Two of that preset's settings depend on a seed rather than a room and so
+are not modelled: the ammo and beam door locks the randomizer assigns, and 4-Tiered item
+markers, whose shape depends on which item landed there. The 19 fixed gray locks on boss,
+miniboss and pirate doors *are* drawn.
+
+The renderer is a port of Map Rando's own `render_tile`, verified by composing the whole
+vanilla map and diffing it against Map Rando's published render of that map: 99.01% of
+non-backdrop pixels are byte-identical.
+
 Room data is vendored in `data/raw/` at a pinned upstream commit — see
 [ATTRIBUTION.md](ATTRIBUTION.md). The numbers asserted in `tests/corpus.test.ts` are only
 stable against that commit; refreshing the data means re-deriving them.

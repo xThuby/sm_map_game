@@ -20,6 +20,11 @@ export type Rgb = readonly [number, number, number];
  */
 const BLACK: Rgb = [0, 0, 0];
 const WHITE: Rgb = [255, 255, 255];
+/**
+ * Door-lock colours are the exception to the measurement above: Map Rando defines these in
+ * source (add_cross_area_arrows), as SNES 5-bit values. Gray is rgb(18, 12, 14).
+ */
+const GRAY_DOOR: Rgb = [148, 98, 115];
 
 /**
  * Index 2 only ever appears in a heated room or an acid room. In the shipped data that is
@@ -28,12 +33,12 @@ const WHITE: Rgb = [255, 255, 255];
  * pixelRenderer.test.ts asserts.
  */
 export const PALETTE: Record<Area, Record<number, Rgb>> = {
-  Crateria: { 0: BLACK, 1: [148, 0, 222], 2: [222, 123, 255], 3: WHITE, 4: BLACK, 5: BLACK, 13: WHITE },
-  Brinstar: { 0: BLACK, 1: [0, 148, 0], 2: [0, 148, 0], 3: WHITE, 4: BLACK, 5: BLACK, 13: WHITE },
-  Norfair: { 0: BLACK, 1: [189, 0, 0], 2: [255, 98, 98], 3: WHITE, 4: BLACK, 5: BLACK, 13: WHITE },
-  'Wrecked Ship': { 0: BLACK, 1: [131, 139, 0], 2: [131, 139, 0], 3: WHITE, 4: BLACK, 5: BLACK, 13: WHITE },
-  Maridia: { 0: BLACK, 1: [24, 98, 238], 2: [24, 98, 238], 3: WHITE, 4: BLACK, 5: BLACK, 13: WHITE },
-  Tourian: { 0: BLACK, 1: [172, 98, 0], 2: [238, 139, 98], 3: WHITE, 4: BLACK, 5: BLACK, 13: WHITE },
+  Crateria: { 0: BLACK, 1: [148, 0, 222], 2: [222, 123, 255], 3: WHITE, 4: BLACK, 5: BLACK, 12: BLACK, 13: WHITE, 15: GRAY_DOOR },
+  Brinstar: { 0: BLACK, 1: [0, 148, 0], 2: [0, 148, 0], 3: WHITE, 4: BLACK, 5: BLACK, 12: BLACK, 13: WHITE, 15: GRAY_DOOR },
+  Norfair: { 0: BLACK, 1: [189, 0, 0], 2: [255, 98, 98], 3: WHITE, 4: BLACK, 5: BLACK, 12: BLACK, 13: WHITE, 15: GRAY_DOOR },
+  'Wrecked Ship': { 0: BLACK, 1: [131, 139, 0], 2: [131, 139, 0], 3: WHITE, 4: BLACK, 5: BLACK, 12: BLACK, 13: WHITE, 15: GRAY_DOOR },
+  Maridia: { 0: BLACK, 1: [24, 98, 238], 2: [24, 98, 238], 3: WHITE, 4: BLACK, 5: BLACK, 12: BLACK, 13: WHITE, 15: GRAY_DOOR },
+  Tourian: { 0: BLACK, 1: [172, 98, 0], 2: [238, 139, 98], 3: WHITE, 4: BLACK, 5: BLACK, 12: BLACK, 13: WHITE, 15: GRAY_DOOR },
 };
 
 /** Areas whose rooms can actually produce palette index 2. */
@@ -44,7 +49,8 @@ export const AREAS_WITH_HEATED_PALETTE: Area[] = ['Crateria', 'Norfair', 'Touria
  * contrast of the real thing without naming the region.
  */
 export const NEUTRAL_PALETTE: Record<number, Rgb> = {
-  0: BLACK, 1: [38, 42, 56], 2: [92, 74, 60], 3: WHITE, 4: BLACK, 5: BLACK, 13: WHITE,
+  0: BLACK, 1: [38, 42, 56], 2: [92, 74, 60], 3: WHITE, 4: BLACK, 5: BLACK,
+  12: BLACK, 13: WHITE, 15: GRAY_DOOR,
 };
 
 export function paletteFor(area: Area, areaColour: boolean): Record<number, Rgb> {

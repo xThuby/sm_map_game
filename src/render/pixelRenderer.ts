@@ -1,6 +1,7 @@
 import { resolveEdge } from '../signature';
 import { tileArt, variantName } from './tileArt';
 import { paletteFor } from './palette';
+import { grayDoorSide } from './grayDoors';
 import type { Renderer } from './renderer';
 import type { Edge, RenderSettings, Room, Side, Tile } from '../types';
 
@@ -15,10 +16,13 @@ import type { Edge, RenderSettings, Room, Side, Tile } from '../types';
  * 5 water highlight, 13 item white.
  */
 export const BACKDROP = 0;
-export const PALETTE_INDICES = new Set([0, 1, 2, 3, 4, 5, 13]);
+export const PALETTE_INDICES = new Set([0, 1, 2, 3, 4, 5, 12, 13, 15]);
 
 const WALL = 3;
 const ITEM = 13;
+const LOCK_SHADOW = 12;
+const LOCK_AIR_SHADOW = 5;
+const GRAY_LOCK = 15;
 
 /**
  * The three concentric rings draw_edge writes to, as (row, col) per side. Index 0 runs
@@ -48,6 +52,28 @@ function edgePixels(edge: Edge, side: Side): { wall: number[]; air: number[] } {
     case 'sand':
       return { wall: side === 'bottom' ? ends : [0, 1, 2, 5, 6, 7], air: [] };
   }
+}
+
+/**
+ * A gray door lock at the large size: a coloured bubble with a black border, sitting on the
+ * wall ring and bulging two pixels into the tile. From draw_edge's LockedDoor arm with
+ * DoorLocksSize::Large, which is what the tournament preset uses.
+ */
+function drawGrayLock(data: number[][], side: Side): void {
+  const wall = ring(side, 0);
+  const air = ring(side, 1);
+  const deep = ring(side, 2);
+  const put = (r: [number, number][], i: number, colour: number) => {
+    const [row, col] = r[i] as [number, number];
+    (data[row] as number[])[col] = colour;
+  };
+
+  for (const i of [0, 1, 6, 7]) put(wall, i, WALL);
+  for (const i of [2, 5]) put(wall, i, LOCK_SHADOW);
+  for (const i of [3, 4]) put(wall, i, GRAY_LOCK);
+  for (const i of [1, 6]) put(air, i, LOCK_AIR_SHADOW);
+  for (const i of [2, 3, 4, 5]) put(air, i, GRAY_LOCK);
+  for (const i of [2, 3, 4, 5]) put(deep, i, LOCK_AIR_SHADOW);
 }
 
 function drawEdge(data: number[][], side: Side, edge: Edge): void {
@@ -152,7 +178,11 @@ export function renderTileBitmap(room: Room, tile: Tile, settings: RenderSetting
 
   if (!(showInterior && ICON_INTERIORS.has(tile.interior))) {
     for (const side of ['top', 'bottom', 'left', 'right'] as const) {
-      drawEdge(data, side, resolveEdge(tile[side], settings));
+      if (settings.grayDoors === 'visible' && grayDoorSide(room.id, tile.x, tile.y, side)) {
+        drawGrayLock(data, side);
+      } else {
+        drawEdge(data, side, resolveEdge(tile[side], settings));
+      }
     }
   }
   return data;

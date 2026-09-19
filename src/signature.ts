@@ -1,4 +1,5 @@
-import type { Edge, RawEdge, RenderSettings, Room, Tile } from './types';
+import { grayDoorSide } from './render/grayDoors';
+import type { Edge, RawEdge, RenderSettings, Room, Side, Tile } from './types';
 
 /**
  * What each stored edge is actually painted as, per wall mode. Transcribed from
@@ -73,11 +74,17 @@ function liquidVisible(room: Room, settings: RenderSettings): boolean {
  * question rather than a colour-matching exercise.
  */
 export function visualSignature(room: Room, settings: RenderSettings): string {
+  // A gray lock is painted over whatever edge was there, so it replaces it in the signature.
+  const edge = (room: Room, t: Tile, side: Side): string =>
+    settings.grayDoors === 'visible' && grayDoorSide(room.id, t.x, t.y, side)
+      ? 'grayLock'
+      : resolveEdge(t[side], settings);
+
   const tiles = room.tiles
     .map((t) => [
       t.x, t.y,
-      resolveEdge(t.left, settings), resolveEdge(t.right, settings),
-      resolveEdge(t.top, settings), resolveEdge(t.bottom, settings),
+      edge(room, t, 'left'), edge(room, t, 'right'),
+      edge(room, t, 'top'), edge(room, t, 'bottom'),
       resolveInterior(t, settings), t.special ?? null,
     ])
     .sort((a, b) => (a[1] as number) - (b[1] as number) || (a[0] as number) - (b[0] as number));
@@ -89,7 +96,7 @@ export function visualSignature(room: Room, settings: RenderSettings): string {
   return parts.join('#');
 }
 
-const BASE: Omit<RenderSettings, 'heat' | 'water' | 'lava' | 'acid' | 'areaColour'> = {
+const BASE: Omit<RenderSettings, 'heat' | 'water' | 'lava' | 'acid' | 'areaColour' | 'grayDoors'> = {
   blueDoors: 'visible',
   walls: 'enhanced',
   items: 'visible',
@@ -100,10 +107,12 @@ const BASE: Omit<RenderSettings, 'heat' | 'water' | 'lava' | 'acid' | 'areaColou
 export const SHAPE_ONLY: RenderSettings = {
   ...BASE,
   heat: 'hidden', water: 'hidden', lava: 'hidden', acid: 'hidden', areaColour: false,
+  grayDoors: 'hidden',
 };
 
 /** Everything the map screen can show. The most forgiving setting. */
 export const FULLY_VISIBLE: RenderSettings = {
   ...BASE,
   heat: 'visible', water: 'visible', lava: 'visible', acid: 'visible', areaColour: true,
+  grayDoors: 'visible',
 };

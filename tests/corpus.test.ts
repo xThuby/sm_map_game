@@ -231,13 +231,13 @@ describe('corpus: visual equivalence', () => {
    */
   it.each([
     ['vanilla',  'visible', false, 179, 21,  95],
-    ['vanilla',  'visible', true,  226, 23,  50],
+    ['vanilla',  'visible', true,  228, 21,  46],
     ['vanilla',  'hidden',  false, 139, 20, 134],
-    ['vanilla',  'hidden',  true,  201, 31,  83],
+    ['vanilla',  'hidden',  true,  204, 28,  77],
     ['enhanced', 'visible', false, 186, 23,  90],
-    ['enhanced', 'visible', true,  231, 19,  41],
+    ['enhanced', 'visible', true,  233, 17,  37],
     ['enhanced', 'hidden',  false, 146, 22, 129],
-    ['enhanced', 'hidden',  true,  207, 28,  74],
+    ['enhanced', 'hidden',  true,  210, 25,  68],
   ] as const)(
     'walls=%s blueDoors=%s hazards=%s -> %i distinct, %i groups, %i rooms',
     (walls, blueDoors, hazards, distinct, groups, roomCount) => {
@@ -245,6 +245,7 @@ describe('corpus: visual equivalence', () => {
       const s: RenderSettings = {
         ...FULLY_VISIBLE, walls, blueDoors,
         heat: level, water: level, lava: level, acid: level, areaColour: hazards,
+        grayDoors: level,
       };
       expect(groupsFor(s)).toEqual({ distinct, groups, rooms: roomCount });
     },
@@ -252,7 +253,19 @@ describe('corpus: visual equivalence', () => {
 
   it('matches the named presets to the settings they stand for', () => {
     expect(groupsFor(SHAPE_ONLY)).toEqual({ distinct: 186, groups: 23, rooms: 90 });
-    expect(groupsFor(FULLY_VISIBLE)).toEqual({ distinct: 231, groups: 19, rooms: 41 });
+    expect(groupsFor(FULLY_VISIBLE)).toEqual({ distinct: 233, groups: 17, rooms: 37 });
+  });
+
+  /**
+   * The 19 fixed gray door locks are shown under the tournament preset, and they carry real
+   * information: they are what tells Kraid Room apart from Pink Brinstar Hopper Room.
+   */
+  it('separates the boss rooms from their look-alikes once gray doors are shown', () => {
+    const kraid = byName.get('Kraid Room')!;
+    const hopper = byName.get('Pink Brinstar Hopper Room')!;
+    const noLocks: RenderSettings = { ...FULLY_VISIBLE, grayDoors: 'hidden' };
+    expect(visualSignature(kraid, noLocks)).toBe(visualSignature(hopper, noLocks));
+    expect(visualSignature(kraid, FULLY_VISIBLE)).not.toBe(visualSignature(hopper, FULLY_VISIBLE));
   });
 
   it('cannot separate Wave Beam Room from Ice Beam Room at any setting', () => {

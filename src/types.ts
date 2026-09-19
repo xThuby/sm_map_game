@@ -96,6 +96,8 @@ export interface RenderSettings {
   lava: Visibility;
   acid: Visibility;
   blueDoors: Visibility;
+  /** The fixed boss/miniboss/pirate door locks. Seed-assigned locks are not modelled. */
+  grayDoors: Visibility;
   walls: 'vanilla' | 'enhanced';
   items: Visibility;
   areaColour: boolean;
