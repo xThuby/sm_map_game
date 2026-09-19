@@ -35,7 +35,12 @@ SOFTWARE.
 
 ## sm-json-data
 
-Planned for Phase 2, not yet vendored.
-[sm-json-data](https://github.com/vg-json-data/sm-json-data), developed by the A Link to the
-Past Randomizer & Super Metroid Randomizer communities, is licensed under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+`data/raw/sm_json_names.json` is derived from
+[sm-json-data](https://github.com/vg-json-data/sm-json-data), pinned at commit
+`f0a990339a2d234ed8d3ae6234c855a016aae021`. It contains only the room id to room name map
+extracted from that dataset; the logic data itself is not redistributed here.
+
+sm-json-data is developed by the A Link to the Past Randomizer & Super Metroid Randomizer
+communities and is licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). This project uses it unmodified in
+substance, as an attributed derivative.

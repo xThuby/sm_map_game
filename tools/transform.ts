@@ -147,6 +147,16 @@ export function deriveHasElevator(tiles: Tile[]): boolean {
   return tiles.some((t) => t.special === 'elevator');
 }
 
+/**
+ * The sm-json-data name for a room, when it is genuinely a different name rather than the
+ * same one cased differently.
+ */
+export function deriveAliases(canonical: string, smJsonName: string | undefined): string[] {
+  if (smJsonName === undefined) return [];
+  if (smJsonName.toLowerCase() === canonical.toLowerCase()) return [];
+  return [smJsonName];
+}
+
 export function deriveOneWay(geo: RawGeoRoom): OneWay | null {
   if (geo.parts.length <= 1) return null;
   return {
@@ -156,7 +166,7 @@ export function deriveOneWay(geo: RawGeoRoom): OneWay | null {
   };
 }
 
-export function buildRoom(rawTile: RawTileRoom, geo: RawGeoRoom): Room {
+export function buildRoom(rawTile: RawTileRoom, geo: RawGeoRoom, aliases: string[] = []): Room {
   if (rawTile.roomId !== geo.room_id) {
     throw new Error(
       `Room id mismatch: map_tiles has ${rawTile.roomId}, room_geometry has ${geo.room_id}`,
@@ -177,6 +187,7 @@ export function buildRoom(rawTile: RawTileRoom, geo: RawGeoRoom): Room {
   return {
     id: geo.room_id,
     name: rawTile.roomName,
+    aliases,
     area: areaFromIndex(geo.area),
     width,
     height,
@@ -195,14 +206,18 @@ export function buildRoom(rawTile: RawTileRoom, geo: RawGeoRoom): Room {
   };
 }
 
-export function buildAllRooms(rawTiles: RawTileRoom[], rawGeo: RawGeoRoom[]): Room[] {
+export function buildAllRooms(
+  rawTiles: RawTileRoom[],
+  rawGeo: RawGeoRoom[],
+  smJsonNames: Record<string, string> = {},
+): Room[] {
   const geoById = new Map(rawGeo.map((g) => [g.room_id, g]));
   if (geoById.size !== rawGeo.length) throw new Error('room_geometry contains duplicate room ids');
 
   const rooms = rawTiles.map((t) => {
     const geo = geoById.get(t.roomId);
     if (!geo) throw new Error(`Room ${t.roomId} (${t.roomName}) is missing from room_geometry`);
-    return buildRoom(t, geo);
+    return buildRoom(t, geo, deriveAliases(t.roomName, smJsonNames[String(t.roomId)]));
   });
 
   if (rooms.length !== rawGeo.length) {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   areaFromIndex, boundingBox, normalizeTile, deriveItemCount, deriveHasHiddenItem,
-  deriveUtilities, deriveHasElevator, deriveOneWay, buildRoom,
+  deriveUtilities, deriveHasElevator, deriveOneWay, deriveAliases, buildRoom,
 } from './transform';
 import type { RawGeoRoom, RawMapTile, RawTileRoom } from './transform';
 import type { Tile } from '../src/types';
@@ -198,5 +198,37 @@ describe('buildRoom', () => {
       rawGeo({ room_id: 321, name: 'Toilet' }),
     );
     expect(r.name).toBe('Toilet Bowl');
+  });
+});
+
+describe('deriveAliases', () => {
+  // maprando.com/logic renders from sm-json-data, so a player may only ever have seen the
+  // room called "The Jail".
+  it('records an sm-json-data name that differs from the canonical one', () => {
+    expect(deriveAliases('Lower Norfair Escape Power Bomb Room', 'The Jail'))
+      .toEqual(['The Jail']);
+  });
+
+  it('records nothing when the two sources agree', () => {
+    expect(deriveAliases('Landing Site', 'Landing Site')).toEqual([]);
+  });
+
+  it('treats a difference of casing alone as agreement', () => {
+    expect(deriveAliases('Parlor and Alcatraz', 'Parlor And Alcatraz')).toEqual([]);
+  });
+
+  it('records nothing when sm-json-data has no name for the room', () => {
+    expect(deriveAliases('Landing Site', undefined)).toEqual([]);
+  });
+});
+
+describe('buildRoom aliases', () => {
+  it('attaches the alias passed for the room', () => {
+    expect(buildRoom(rawTiles(), rawGeo(), ['Some Other Name']).aliases)
+      .toEqual(['Some Other Name']);
+  });
+
+  it('defaults to no aliases', () => {
+    expect(buildRoom(rawTiles(), rawGeo()).aliases).toEqual([]);
   });
 });

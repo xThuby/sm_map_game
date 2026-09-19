@@ -8,7 +8,7 @@ const tile = (over: Partial<Tile> = {}): Tile => ({
 });
 
 const room = (over: Partial<Room> = {}): Room => ({
-  id: 1, name: 'Test Room', area: 'Crateria', width: 1, height: 1,
+  id: 1, name: 'Test Room', aliases: [], area: 'Crateria', width: 1, height: 1,
   tiles: [tile()], heated: false, liquid: 'none', liquidLevel: null,
   doors: [], itemCount: 0, hasHiddenItem: false, utilities: [], hasElevator: false,
   oneWay: null, ...over,

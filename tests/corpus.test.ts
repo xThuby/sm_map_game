@@ -14,7 +14,8 @@ const readRaw = <T>(f: string): T =>
 
 const rawTiles = readRaw<{ rooms: RawTileRoom[] }>('map_tiles.json').rooms;
 const rawGeo = readRaw<RawGeoRoom[]>('room_geometry.json');
-const rooms: Room[] = buildAllRooms(rawTiles, rawGeo);
+const smNames = readRaw<Record<string, string>>('sm_json_names.json');
+const rooms: Room[] = buildAllRooms(rawTiles, rawGeo, smNames);
 
 const byName = new Map(rooms.map((r) => [r.name, r]));
 const tally = <T>(xs: T[]): Record<string, number> => {
@@ -140,6 +141,44 @@ describe('corpus: derived room facts', () => {
     expect(split).toHaveLength(41);
     expect(split.filter((r) => r.oneWay!.transient.length > 0)).toHaveLength(35);
     expect(split.filter((r) => r.oneWay!.durable.length > 0)).toHaveLength(4);
+  });
+});
+
+describe('corpus: aliases', () => {
+  it('gives 31 rooms a name from sm-json-data that the map data does not use', () => {
+    expect(rooms.filter((r) => r.aliases.length > 0)).toHaveLength(31);
+  });
+
+  it('has an sm-json-data name for every one of the 253 rooms', () => {
+    for (const r of rooms) expect(smNames[String(r.id)]).toBeTypeOf('string');
+  });
+
+  it('knows the rooms players are most likely to name differently', () => {
+    const alias = (name: string) => byName.get(name)?.aliases;
+    expect(alias('Lower Norfair Escape Power Bomb Room')).toEqual(['The Jail']);
+    expect(alias('Bug Sand Hole')).toEqual(['Yoink Room']);
+    expect(alias('Pseudo Plasma Spark Room')).toEqual(['The Beach']);
+    expect(alias('Post Crocomire Missile Room')).toEqual(['Cosine Room']);
+  });
+
+  /**
+   * If an alias equalled some other room's canonical name, a typed answer could not be
+   * resolved to one room. It does not happen, and this fails loudly if upstream changes that.
+   */
+  it('never reuses another room\'s canonical name as an alias', () => {
+    const canonical = new Map(rooms.map((r) => [r.name.toLowerCase(), r.id]));
+    for (const r of rooms) {
+      for (const a of r.aliases) {
+        const owner = canonical.get(a.toLowerCase());
+        expect(owner === undefined || owner === r.id).toBe(true);
+      }
+    }
+  });
+
+  it('offers 284 distinct names across all rooms', () => {
+    const all = rooms.flatMap((r) => [r.name, ...r.aliases]);
+    expect(new Set(all).size).toBe(284);
+    expect(all).toHaveLength(284);
   });
 });
 

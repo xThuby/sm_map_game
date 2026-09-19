@@ -61,7 +61,13 @@ export interface OneWay {
 
 export interface Room {
   id: number;
+  /** The name Map Rando's own map data uses. */
   name: string;
+  /**
+   * Other names the same room goes by, from sm-json-data. maprando.com/logic renders from
+   * that dataset, so 31 rooms are known there by a name the map data never shows.
+   */
+  aliases: string[];
   area: Area;
   width: number;
   height: number;

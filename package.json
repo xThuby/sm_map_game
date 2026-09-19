@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "fetch:data": "node tools/fetch-data.ts",
-    "build:data": "node tools/build-rooms.ts"
+    "build:data": "node tools/build-rooms.ts",
+    "fetch:aliases": "node tools/fetch-aliases.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

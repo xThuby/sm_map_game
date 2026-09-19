@@ -35,16 +35,21 @@ function main(): void {
     readFileSync(resolve(rawDir, 'room_geometry.json'), 'utf8'),
   ) as RawGeoRoom[];
 
-  const rooms: Room[] = buildAllRooms(tiles.rooms, geo);
+  const smJsonNames = JSON.parse(
+    readFileSync(resolve(rawDir, 'sm_json_names.json'), 'utf8'),
+  ) as Record<string, string>;
+
+  const rooms: Room[] = buildAllRooms(tiles.rooms, geo, smJsonNames);
 
   assert(rooms.length === EXPECTED_ROOMS, `expected ${EXPECTED_ROOMS} rooms, got ${rooms.length}`);
   const tileCount = rooms.reduce((n, r) => n + r.tiles.length, 0);
   assert(tileCount === EXPECTED_TILES, `expected ${EXPECTED_TILES} tiles, got ${tileCount}`);
   const itemCount = rooms.reduce((n, r) => n + r.itemCount, 0);
   assert(itemCount === EXPECTED_ITEMS, `expected ${EXPECTED_ITEMS} items, got ${itemCount}`);
+  const answerNames = rooms.flatMap((r) => [r.name, ...r.aliases]);
   assert(
-    new Set(rooms.map((r) => r.name)).size === rooms.length,
-    'room names are not unique, so they cannot be used as answers',
+    new Set(answerNames).size === answerNames.length,
+    'room names and aliases are not unique, so a typed answer could be ambiguous',
   );
   for (const r of rooms) {
     assert(r.tiles.length > 0, `room ${r.id} (${r.name}) has no tiles`);
