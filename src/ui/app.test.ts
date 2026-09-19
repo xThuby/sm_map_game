@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mountApp, ALIAS_ISSUE_BASE, plural } from './app';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS, MAX_TILE_SIZE, VIEWPORT } from '../render/renderer';
-import { MAX_GUESSES, ROUND_LENGTH } from '../game/session';
+import { MAX_GUESSES, ROUND_LENGTH, STARTING_POINTS, HINT_COSTS } from '../game/session';
 import type { Renderer } from '../render/renderer';
 import type { App } from './app';
 
@@ -24,6 +24,20 @@ const q = <T extends Element>(sel: string): T => {
   return el;
 };
 const click = (sel: string) => q<HTMLButtonElement>(sel).click();
+const buyButton = (kind: string) =>
+  root.querySelector<HTMLButtonElement>(`button[data-action=buy][data-hint=${kind}]`);
+const buy = (kind: string) => {
+  const button = buyButton(kind);
+  if (!button) throw new Error(`no hint for sale: ${kind}`);
+  button.click();
+};
+const giveUp = () => click('button[data-action=give-up]');
+/** Any room but the one being asked about, so the guess is wrong but recognised. */
+const wrongGuess = (app: App) => {
+  const other = rooms.find((r) => r.id !== app.session.current().id) as { name: string };
+  type(other.name);
+  click('button[data-action=guess]');
+};
 const type = (value: string) => {
   const input = q<HTMLInputElement>('input[name=answer]');
   input.value = value;
@@ -62,12 +76,12 @@ describe('plural', () => {
 });
 
 describe('layout', () => {
-  it('shows a canvas, an answer box, Answer and Skip', () => {
+  it('shows a canvas, an answer box, Answer and Give up', () => {
     mount();
     expect(q('canvas')).toBeTruthy();
     expect(q('input[name=answer]')).toBeTruthy();
     expect(q('button[data-action=guess]')).toBeTruthy();
-    expect(q('button[data-action=skip]')).toBeTruthy();
+    expect(q('button[data-action=give-up]')).toBeTruthy();
   });
 
   it('says how many guesses are left', () => {
@@ -75,7 +89,7 @@ describe('layout', () => {
     expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
   });
 
-  /** Next must not look like a way out of the room; Skip is what buys a hint. */
+  /** Next must not look like a way out of the room; Give up is the way out. */
   it('hides Next until the room is over', () => {
     const app = only('Volcano Room');
     expect(q<HTMLButtonElement>('button[data-action=next]').hidden).toBe(true);
@@ -85,12 +99,12 @@ describe('layout', () => {
     void app;
   });
 
-  it('hides Answer and Skip once the room is over', () => {
+  it('hides Answer and Give up once the room is over', () => {
     only('Volcano Room');
     type('Volcano Room');
     click('button[data-action=guess]');
     expect(q<HTMLButtonElement>('button[data-action=guess]').hidden).toBe(true);
-    expect(q<HTMLButtonElement>('button[data-action=skip]').hidden).toBe(true);
+    expect(q<HTMLButtonElement>('button[data-action=give-up]').hidden).toBe(true);
   });
 
   it('does not name the room before it is over', () => {
@@ -109,33 +123,31 @@ describe('guessing', () => {
   });
 
   it('counts down the guesses as they are spent', () => {
-    only('Volcano Room');
-    click('button[data-action=skip]');
+    const app = only('Volcano Room');
+    wrongGuess(app);
     expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES - 1));
   });
 
-  it('reveals a hint per spent guess', () => {
-    only('Volcano Room');
-    click('button[data-action=skip]');
-    expect(q('[data-role=facts]').textContent).toContain('Norfair');
-    click('button[data-action=skip]');
-    expect(q('[data-role=facts]').textContent).toContain('Fune');
-  });
-
-  it('has every hint out while the final guess is still available', () => {
-    only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
-    expect(q('[data-role=guesses]').textContent).toContain('1 guess left');
-    expect(q('[data-role=facts]').textContent).toContain('Norfair');
+  /** A wrong answer costs a guess and nothing else: hints are bought, not earned. */
+  it('gives nothing away for a wrong answer', () => {
+    const app = only('Volcano Room');
+    wrongGuess(app);
+    expect(q('[data-role=facts]').textContent).not.toContain('Norfair');
+    expect(q('[data-role=points]').textContent).toContain(String(STARTING_POINTS));
   });
 
   it('reveals the answer once every guess is spent', () => {
-    only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    const app = only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES; i += 1) wrongGuess(app);
     expect(q('[data-role=room-name]').textContent).toContain('Volcano Room');
   });
 
-  /** A button labelled Answer should not spend a guess on a hint; only Enter offers that. */
+  it('reveals the answer when the room is given up on', () => {
+    only('Volcano Room');
+    giveUp();
+    expect(q('[data-role=room-name]').textContent).toContain('Volcano Room');
+  });
+
   it('does nothing when the Answer button is pressed with an empty box', () => {
     only('Volcano Room');
     click('button[data-action=guess]');
@@ -256,9 +268,7 @@ describe('fitting the room on screen', () => {
       rooms, settings: { ...TOURNAMENT_SETTINGS }, renderer: recorder, random: seeded(),
     }));
     for (let i = 0; i < 12; i += 1) {
-      for (let k = 0; k < MAX_GUESSES; k += 1) {
-        root2.querySelector<HTMLButtonElement>('button[data-action=skip]')!.click();
-      }
+      root2.querySelector<HTMLButtonElement>('button[data-action=give-up]')!.click();
       root2.querySelector<HTMLButtonElement>('button[data-action=next]')!.click();
     }
     expect(new Set(sizes).size).toBeGreaterThan(1);
@@ -297,7 +307,7 @@ describe('par', () => {
   it('follows the room being looked back at', () => {
     mount();
     const shownFirst = q('[data-role=par]').textContent;
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    giveUp();
     click('button[data-action=next]');
     q<HTMLInputElement>('input[name=answer]').blur();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
@@ -323,7 +333,7 @@ describe('the two columns', () => {
     const right = q<HTMLDivElement>('[data-role=right]');
     expect(right.querySelector('input[name=answer]')).toBeTruthy();
     expect(right.querySelector('button[data-action=guess]')).toBeTruthy();
-    expect(right.querySelector('button[data-action=skip]')).toBeTruthy();
+    expect(right.querySelector('button[data-action=give-up]')).toBeTruthy();
     expect(right.querySelector('[data-role=guesses]')).toBeTruthy();
     expect(right.querySelector('[data-role=facts]')).toBeTruthy();
     expect(right.querySelector('[data-role=room-name]')).toBeTruthy();
@@ -369,6 +379,25 @@ describe('the keyboard', () => {
     expect(q<HTMLInputElement>('input[name=answer]').value).toBe('');
   });
 
+  /**
+   * A typo is not a guess — it costs nothing and is graded against nothing, so wiping the
+   * box would throw away work the player still has to redo.
+   */
+  it('leaves the box alone when what was typed names no room', () => {
+    only('Volcano Room');
+    type('Volcan Roomm');
+    press('Enter');
+    expect(q<HTMLInputElement>('input[name=answer]').value).toBe('Volcan Roomm');
+  });
+
+  it('leaves the box alone for a near miss it can suggest a fix for', () => {
+    only('Volcano Room');
+    type('Volcanoe Room');
+    press('Enter');
+    expect(q('[data-role=verdict]').textContent).toContain('Volcano Room');
+    expect(q<HTMLInputElement>('input[name=answer]').value).toBe('Volcanoe Room');
+  });
+
   it('moves to the next room on Enter once the room is over', () => {
     const app = mount();
     type(app.session.current().name);
@@ -378,44 +407,25 @@ describe('the keyboard', () => {
     expect(app.session.state()).toBe('guessing');
   });
 
-  describe('skip confirmation', () => {
-    /** Enter on an empty box is as likely a stray keypress as a decision. */
-    it('asks before spending a guess', () => {
+  /**
+   * Enter on an empty box used to offer a hint for a guess. Hints are bought now, so there
+   * is nothing for it to do and it should cost nothing.
+   */
+  describe('Enter on an empty box', () => {
+    it('does nothing at all', () => {
       only('Volcano Room');
       press('Enter');
-      expect(q('[data-role=verdict]').textContent).toMatch(/again|confirm/i);
+      expect(q('[data-role=verdict]').textContent).toBe('');
       expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
+      expect(q('[data-role=points]').textContent).toContain(String(STARTING_POINTS));
     });
 
-    it('skips when Enter is pressed a second time', () => {
-      only('Volcano Room');
+    it('does nothing when pressed twice either', () => {
+      const app = only('Volcano Room');
       press('Enter');
       press('Enter');
-      expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES - 1));
-      expect(q('[data-role=facts]').textContent).toContain('Norfair');
-    });
-
-    it('stands down when you start typing', () => {
-      only('Volcano Room');
-      press('Enter');
-      type('vol');
-      expect(q('[data-role=verdict]').textContent).toBe('');
-      press('Enter');
-      expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
-    });
-
-    it('stands down on Escape', () => {
-      only('Volcano Room');
-      press('Enter');
-      press('Escape');
-      expect(q('[data-role=verdict]').textContent).toBe('');
-    });
-
-    it('stands down when the box loses focus', () => {
-      only('Volcano Room');
-      press('Enter');
-      q<HTMLInputElement>('input[name=answer]').dispatchEvent(new Event('blur', { bubbles: true }));
-      expect(q('[data-role=verdict]').textContent).toBe('');
+      expect(app.session.state()).toBe('guessing');
+      expect(q('[data-role=facts]').textContent).not.toContain('Norfair');
     });
   });
 
@@ -424,7 +434,7 @@ describe('the keyboard', () => {
 describe('the room diagram hint', () => {
   it('replaces the map rather than sitting beside it', () => {
     only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
+    buy('diagram');
     const img = q<HTMLImageElement>('[data-role=stage] img[data-role=diagram]');
     expect(img.src).toContain('VolcanoRoom_116.png');
     expect(q<HTMLCanvasElement>('canvas').hidden).toBe(true);
@@ -432,7 +442,7 @@ describe('the room diagram hint', () => {
 
   it('is drawn at the size the map was', () => {
     only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
+    buy('diagram');
     const canvas = q<HTMLCanvasElement>('canvas');
     const img = q<HTMLImageElement>('[data-role=stage] img[data-role=diagram]');
     expect(img.width).toBe(canvas.width);
@@ -441,7 +451,8 @@ describe('the room diagram hint', () => {
 
   it('shows the map again on the next room', () => {
     const app = mount();
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    buy('diagram');
+    giveUp();
     click('button[data-action=next]');
     expect(root.querySelector('[data-role=stage] img[data-role=diagram]')).toBeNull();
     expect(q<HTMLCanvasElement>('canvas').hidden).toBe(false);
@@ -459,7 +470,7 @@ describe('looking back at earlier rooms', () => {
     return e;
   };
   const finish = () => {
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    giveUp();
     click('button[data-action=next]');
   };
 
@@ -518,9 +529,7 @@ describe('looking back at earlier rooms', () => {
 });
 
 describe('the map / room toggle', () => {
-  const revealDiagram = () => {
-    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
-  };
+  const revealDiagram = () => buy('diagram');
 
   it('stays hidden until the room itself has been revealed', () => {
     only('Volcano Room');
@@ -552,19 +561,27 @@ describe('the map / room toggle', () => {
 
   it('goes away again on the next room', () => {
     mount();
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    revealDiagram();
+    giveUp();
     click('button[data-action=next]');
     expect(q<HTMLButtonElement>('button[data-action=toggle-view]').hidden).toBe(true);
   });
 });
 
 describe('rounds', () => {
-  const finishRoom = () => {
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
-  };
   const playRound = () => {
-    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(); click('button[data-action=next]'); }
-    finishRoom();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { giveUp(); click('button[data-action=next]'); }
+    giveUp();
+  };
+  /** A clean round: every room named first go, so the points come out whole. */
+  const playPerfectRound = (app: App) => {
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) {
+      type(app.session.current().name);
+      click('button[data-action=guess]');
+      click('button[data-action=next]');
+    }
+    type(app.session.current().name);
+    click('button[data-action=guess]');
   };
 
   it('says nothing about rounds until one is over', () => {
@@ -626,10 +643,51 @@ describe('rounds', () => {
     expect(struggles.querySelectorAll('li').length).toBeLessThanOrEqual(5);
   });
 
-  it('counts every room of the round as lost when all were skipped', () => {
+  it('counts every room of the round as lost when all were given up on', () => {
     mount();
     playRound();
     expect(q('[data-role=win-rate]').textContent).toContain('0%');
+  });
+
+  it('totals the points won over the round', () => {
+    const app = mount();
+    playPerfectRound(app);
+    expect(q('[data-role=round-points]').textContent)
+      .toContain(String(STARTING_POINTS * ROUND_LENGTH));
+  });
+
+  /** Not out of a possible 600: most rooms cannot be had without spending something. */
+  it('gives the round total on its own, not against what was possible', () => {
+    const app = mount();
+    playPerfectRound(app);
+    expect(q('[data-role=round-points]').textContent).not.toContain('600 of');
+    expect(q('[data-role=round-points]').textContent).not.toMatch(/out of|\/\s*\d/);
+  });
+
+  it('counts a bought hint against the round total', () => {
+    const app = mount();
+    buy('area');
+    type(app.session.current().name);
+    click('button[data-action=guess]');
+    click('button[data-action=next]');
+    for (let i = 0; i < ROUND_LENGTH - 2; i += 1) {
+      type(app.session.current().name);
+      click('button[data-action=guess]');
+      click('button[data-action=next]');
+    }
+    type(app.session.current().name);
+    click('button[data-action=guess]');
+    expect(q('[data-role=round-points]').textContent)
+      .toContain(String(STARTING_POINTS * ROUND_LENGTH - HINT_COSTS.area));
+  });
+
+  it('reports the average points a room and the best round, all time', () => {
+    const app = mount();
+    playPerfectRound(app);
+    const text = q('[data-role=all-points]').textContent ?? '';
+    expect(text).toMatch(/average/i);
+    expect(text).toMatch(/best/i);
+    expect(text).toContain(String(STARTING_POINTS * ROUND_LENGTH));
   });
 });
 
@@ -640,9 +698,8 @@ describe('the fact panel', () => {
   it('starts with the name and every hinted fact unknown', () => {
     only('Watering Hole');
     expect(q('[data-role=room-name]').textContent).toBe('???');
-    expect(facts()).toContain('Area: ?');
-    expect(facts()).toContain('Enemies: ?');
-    expect(facts()).toContain('Connects to: ?');
+    for (const kind of ['area', 'enemies', 'neighbour']) expect(buyButton(kind), kind).toBeTruthy();
+    expect(facts().join(' ')).not.toContain('Maridia');
   });
 
   it('shows the facts that were never a hint from the start', () => {
@@ -657,22 +714,22 @@ describe('the fact panel', () => {
     expect(facts().join(' ')).not.toMatch(/door/i);
   });
 
-  it('fills a fact in as its hint arrives', () => {
+  it('fills a fact in when its hint is bought', () => {
     only('Volcano Room');
-    click('button[data-action=skip]');
+    buy('area');
     expect(facts()).toContain('Area: Norfair');
-    expect(facts()).toContain('Enemies: ?');
+    expect(buyButton('enemies')).toBeTruthy();
   });
 
-  it('turns the name into its hangman shape on the last hint', () => {
+  it('turns the name into its hangman shape when that hint is bought', () => {
     only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
+    buy('name');
     expect(q('[data-role=room-name]').textContent).toBe('V______ R___');
   });
 
   it('names the room once it is over', () => {
     only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    giveUp();
     expect(q('[data-role=room-name]').textContent).toBe('Volcano Room');
   });
 
@@ -686,7 +743,7 @@ describe('the fact panel', () => {
   it('offers a prefilled issue link once the room is named', () => {
     only('Volcano Room');
     expect(root.querySelector('a[data-action=suggest-alias]')).toBeNull();
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    giveUp();
     const link = q<HTMLAnchorElement>('a[data-action=suggest-alias]');
     expect(link.href).toContain(ALIAS_ISSUE_BASE);
     expect(new URL(link.href).searchParams.get('title')).toContain('Volcano Room');
@@ -695,7 +752,7 @@ describe('the fact panel', () => {
   /** The picture stands in for the map, so listing it again as text says nothing. */
   it('does not list the room picture as a fact', () => {
     only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    giveUp();
     expect(facts().join(' ')).not.toMatch(/room itself|in place of the map/i);
   });
 });
@@ -710,10 +767,11 @@ describe('finishing a room with the keyboard', () => {
   /** The box used to be disabled once the room ended, and a disabled input gets no keydown. */
   it('advances on Enter after the last guess is spent', () => {
     const app = mount();
-    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
+    for (let i = 0; i < MAX_GUESSES - 1; i += 1) wrongGuess(app);
     type('definitely not a room');
     press('Enter');
-    type('The Moat');
+    const other = rooms.find((r) => r.id !== app.session.current().id) as { name: string };
+    type(other.name);
     press('Enter');
     expect(app.session.state()).not.toBe('guessing');
     press('Enter');
@@ -722,7 +780,7 @@ describe('finishing a room with the keyboard', () => {
 
   it('leaves the box usable so it can still take the key', () => {
     mount();
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    giveUp();
     expect(q<HTMLInputElement>('input[name=answer]').disabled).toBe(false);
   });
 });
@@ -784,5 +842,113 @@ describe('choosing a suggestion', () => {
     press('ArrowDown');
     type('brinstar m');
     expect(selected()).toBe(0);
+  });
+});
+
+describe('buying hints', () => {
+  it('offers every hint from the start, each with what it costs', () => {
+    only('Volcano Room');
+    for (const [kind, cost] of Object.entries(HINT_COSTS)) {
+      expect(buyButton(kind), kind).toBeTruthy();
+      expect(buyButton(kind)?.textContent, kind).toContain(String(cost));
+    }
+  });
+
+  /** A hint's price sits where its answer will appear, so the trade is plain. */
+  it('puts each button where the fact it buys will go', () => {
+    only('Volcano Room');
+    expect(buyButton('area')?.closest('li[data-role=fact]')?.textContent).toMatch(/^\s*Area:/);
+    expect(buyButton('enemies')?.closest('li[data-role=fact]')?.textContent)
+      .toMatch(/^\s*Enemies:/);
+    expect(buyButton('neighbour')?.closest('li[data-role=fact]')?.textContent)
+      .toMatch(/^\s*Connects to:/);
+  });
+
+  it("puts the name's price beside the name, above the facts", () => {
+    only('Volcano Room');
+    expect(buyButton('name')?.closest('li[data-role=fact]')).toBeNull();
+    const name = q('[data-role=room-name]');
+    expect(buyButton('name')?.parentElement).toBe(name.parentElement);
+  });
+
+  /** The picture is not a fact in the list; it stands in for the map, so it is bought there. */
+  it("puts the picture's price beside the room, in the left column", () => {
+    only('Volcano Room');
+    expect(q<HTMLDivElement>('[data-role=left]').contains(buyButton('diagram'))).toBe(true);
+  });
+
+  it('spends the points and reveals the fact', () => {
+    only('Volcano Room');
+    buy('neighbour');
+    expect(q('[data-role=points]').textContent)
+      .toContain(String(STARTING_POINTS - HINT_COSTS.neighbour));
+    expect(q('[data-role=facts]').textContent).toContain('Kronic Boost Room');
+  });
+
+  it('takes the button away once its hint is bought', () => {
+    only('Volcano Room');
+    buy('area');
+    expect(buyButton('area')).toBeNull();
+  });
+
+  it('costs no guesses', () => {
+    only('Volcano Room');
+    buy('area');
+    buy('enemies');
+    expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
+  });
+
+  /** You cannot have every hint on one room, so what is unaffordable has to show as such. */
+  it('turns off what there is no longer the money for', () => {
+    only('Volcano Room');
+    buy('name');
+    buy('diagram');
+    buy('neighbour');
+    expect(q('[data-role=points]').textContent).toContain('0');
+    expect(buyButton('area')?.disabled).toBe(true);
+    expect(buyButton('enemies')?.disabled).toBe(true);
+  });
+
+  it('has nothing left to sell once the room is over', () => {
+    only('Volcano Room');
+    giveUp();
+    for (const kind of Object.keys(HINT_COSTS)) expect(buyButton(kind), kind).toBeNull();
+  });
+
+  it('starts the next room on a full hundred with everything for sale again', () => {
+    const app = mount();
+    buy('area');
+    giveUp();
+    click('button[data-action=next]');
+    expect(q('[data-role=points]').textContent).toContain(String(STARTING_POINTS));
+    for (const kind of Object.keys(HINT_COSTS)) expect(buyButton(kind), kind).toBeTruthy();
+    void app;
+  });
+});
+
+describe('points', () => {
+  it('sits with the guesses left and the par, above the answer box', () => {
+    only('Landing Site');
+    const points = q<HTMLElement>('[data-role=points]');
+    expect(points.textContent).toContain(String(STARTING_POINTS));
+    expect(points.parentElement).toBe(q('[data-role=guesses]').parentElement);
+    expect(points.compareDocumentPosition(q('input[name=answer]'))
+      & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps what is left when the room is solved', () => {
+    only('Volcano Room');
+    buy('area');
+    type('Volcano Room');
+    click('button[data-action=guess]');
+    expect(q('[data-role=points]').textContent)
+      .toContain(String(STARTING_POINTS - HINT_COSTS.area));
+  });
+
+  it('is worth nothing once the room is lost', () => {
+    only('Volcano Room');
+    buy('area');
+    giveUp();
+    expect(q('[data-role=points]').textContent).toMatch(/\b0\b/);
   });
 });

@@ -1,15 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
-  emptyStats, recordRoom, winRate, guessHistogram, strugglingRooms,
-  loadStats, saveStats, STORAGE_KEY,
+  emptyStats, recordRoom, recordRound, winRate, guessHistogram, strugglingRooms,
+  averagePoints, loadStats, saveStats, STORAGE_KEY,
 } from './stats';
 import type { Stats } from './stats';
 import { MAX_GUESSES } from './session';
 
-const solve = (stats: Stats, name: string, guesses: number) =>
-  recordRoom(stats, { roomId: name.length, roomName: name, solved: true, guessesUsed: guesses });
-const lose = (stats: Stats, name: string) =>
-  recordRoom(stats, { roomId: name.length, roomName: name, solved: false, guessesUsed: MAX_GUESSES });
+const solve = (stats: Stats, name: string, guesses: number, points = 100) => recordRoom(
+  stats, { roomId: name.length, roomName: name, solved: true, guessesUsed: guesses, points },
+);
+const lose = (stats: Stats, name: string) => recordRoom(stats, {
+  roomId: name.length, roomName: name, solved: false, guessesUsed: MAX_GUESSES, points: 0,
+});
 
 describe('recordRoom', () => {
   it('starts empty', () => {
@@ -136,6 +138,59 @@ describe('strugglingRooms', () => {
   });
 });
 
+describe('points', () => {
+  it('starts with nothing banked', () => {
+    expect(emptyStats().points).toBe(0);
+    expect(emptyStats().bestRound).toBe(0);
+    expect(averagePoints(emptyStats())).toBe(0);
+  });
+
+  it('banks what each room was worth', () => {
+    const s = solve(solve(emptyStats(), 'The Moat', 1, 100), 'Watering Hole', 2, 40);
+    expect(s.points).toBe(140);
+  });
+
+  it('averages over every room played, lost ones included', () => {
+    const s = lose(solve(emptyStats(), 'The Moat', 1, 90), 'Watering Hole');
+    expect(averagePoints(s)).toBe(45);
+  });
+
+  /**
+   * Rooms played before points existed have none, and there is no telling what they were
+   * worth. Counting them would hold the average near zero for good, so the average is over
+   * the rooms that were actually scored.
+   */
+  it('averages only over the rooms that were scored', () => {
+    const before = solve(solve(emptyStats(), 'The Moat', 1), 'Watering Hole', 1) as Stats;
+    const unscored: Stats = { ...before, points: 0, pointedRooms: 0 };
+    const s = solve(unscored, 'Volcano Room', 1, 80);
+    expect(s.played).toBe(3);
+    expect(averagePoints(s)).toBe(80);
+  });
+
+  it('rounds the average to a whole point', () => {
+    const s = solve(solve(emptyStats(), 'The Moat', 1, 100), 'Watering Hole', 2, 45);
+    expect(averagePoints(s)).toBe(73);
+  });
+
+  /** A score is a round's total, so the best one is a round's, not a room's. */
+  it('remembers the best round', () => {
+    const s = recordRound(recordRound(emptyStats(), 410), 380);
+    expect(s.bestRound).toBe(410);
+  });
+
+  it('takes a better round when one comes along', () => {
+    const s = recordRound(recordRound(emptyStats(), 380), 410);
+    expect(s.bestRound).toBe(410);
+  });
+
+  it('leaves the stats it was given untouched', () => {
+    const before = emptyStats();
+    recordRound(before, 500);
+    expect(before.bestRound).toBe(0);
+  });
+});
+
 describe('storage', () => {
   const fakeStorage = (): Storage => {
     const map = new Map<string, string>();
@@ -164,6 +219,19 @@ describe('storage', () => {
     const store = fakeStorage();
     store.setItem(STORAGE_KEY, 'not json at all');
     expect(loadStats(store)).toEqual(emptyStats());
+  });
+
+  /** Stats saved before points existed are worth keeping; they just have none banked. */
+  it('reads stats saved before points existed', () => {
+    const store = fakeStorage();
+    const old = solve(emptyStats(), 'The Moat', 2) as Partial<Stats>;
+    delete old.points;
+    delete old.bestRound;
+    store.setItem(STORAGE_KEY, JSON.stringify(old));
+    const loaded = loadStats(store);
+    expect(loaded.points).toBe(0);
+    expect(loaded.bestRound).toBe(0);
+    expect(loaded.played).toBe(1);
   });
 
   it('starts fresh when the stored shape is wrong', () => {

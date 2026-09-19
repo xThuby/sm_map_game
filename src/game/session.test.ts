@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createSession, shuffleBag, MAX_GUESSES, HINT_ORDER, nameHint, ROUND_LENGTH,
+  createSession, shuffleBag, MAX_GUESSES, HINT_ORDER, HINT_COSTS, STARTING_POINTS,
+  nameHint, ROUND_LENGTH,
 } from './session';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS } from '../render/renderer';
@@ -28,10 +29,11 @@ describe('shuffleBag', () => {
 });
 
 describe('guesses', () => {
-  it('starts with all guesses unspent and no hints', () => {
+  it('starts with every guess unspent, no hints, and full points', () => {
     const s = only('Volcano Room');
     expect(s.guessesLeft()).toBe(MAX_GUESSES);
     expect(s.hints()).toEqual([]);
+    expect(s.points()).toBe(STARTING_POINTS);
     expect(s.state()).toBe('guessing');
   });
 
@@ -42,68 +44,39 @@ describe('guesses', () => {
     expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
   });
 
-  it('spends a guess and reveals the next hint when wrong', () => {
+  /** Guesses and hints are separate currencies now: a wrong answer gives nothing away. */
+  it('spends a guess when wrong, and reveals nothing', () => {
     const s = only('Volcano Room');
     s.guess('Landing Site');
     expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
-    expect(s.hints()).toHaveLength(1);
-    expect(s.state()).toBe('guessing');
-  });
-
-  it('spends a guess for a hint when skipped, without an answer', () => {
-    const s = only('Volcano Room');
-    s.skip();
-    expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
-    expect(s.hints()).toHaveLength(1);
-  });
-
-  it('reveals hints in order as guesses are spent', () => {
-    const s = only('Volcano Room');
-    s.skip();
-    expect(s.hints().map((h) => h.kind)).toEqual(['area']);
-    s.skip();
-    expect(s.hints().map((h) => h.kind)).toEqual(['area', 'enemies']);
-  });
-
-  it('reveals exactly one hint per spent guess', () => {
-    const s = only('Volcano Room');
-    for (const [i, kind] of HINT_ORDER.entries()) {
-      s.skip();
-      expect(s.hints().map((h) => h.kind)).toEqual(HINT_ORDER.slice(0, i + 1));
-      expect(kind).toBe(HINT_ORDER[i]);
-    }
-  });
-
-  /**
-   * The diagram has to be on screen while the last guess is made, not delivered alongside
-   * the answer, so it lands on the fourth of five guesses.
-   */
-  it('has every hint showing with one guess still in hand', () => {
-    const s = only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES - 1; i += 1) s.skip();
-    expect(s.guessesLeft()).toBe(1);
-    expect(s.hints().map((h) => h.kind)).toEqual(HINT_ORDER);
+    expect(s.hints()).toEqual([]);
+    expect(s.points()).toBe(STARTING_POINTS);
     expect(s.state()).toBe('guessing');
   });
 
   it('is lost once every guess is spent', () => {
     const s = only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+    for (let i = 0; i < MAX_GUESSES; i += 1) s.guess('Landing Site');
     expect(s.guessesLeft()).toBe(0);
     expect(s.state()).toBe('lost');
   });
 
-  it('shows every hint once the room is lost', () => {
+  /** Giving up is the way out of a room you cannot name, and it costs the rest of the round
+   * nothing but the points. It does not pretend the guesses were spent. */
+  it('ends the room when given up on, without spending the guesses', () => {
     const s = only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
-    expect(s.hints().map((h) => h.kind)).toEqual(HINT_ORDER);
+    s.guess('Landing Site');
+    s.giveUp();
+    expect(s.state()).toBe('lost');
+    expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
   });
 
   it('refuses further guesses once the room is over', () => {
     const s = only('Volcano Room');
     s.guess('Volcano Room');
     expect(() => s.guess('Landing Site')).toThrow();
-    expect(() => s.skip()).toThrow();
+    expect(() => s.giveUp()).toThrow();
+    expect(() => s.buyHint('area')).toThrow();
   });
 
   it('does not spend a guess on an answer that names no room', () => {
@@ -134,18 +107,125 @@ describe('guesses', () => {
   });
 });
 
+describe('buying hints', () => {
+  it('prices the hints as advertised', () => {
+    expect(HINT_COSTS).toEqual({ area: 10, enemies: 10, neighbour: 20, diagram: 30, name: 50 });
+  });
+
+  /**
+   * Every hint at once costs more than a room is worth, so buying is a real choice rather
+   * than a schedule. Knowing the room but not its name should be buyable; knowing nothing
+   * and buying everything should not.
+   */
+  it('costs more to buy every hint than a room is worth', () => {
+    const total = HINT_ORDER.reduce((sum, kind) => sum + HINT_COSTS[kind], 0);
+    expect(total).toBeGreaterThan(STARTING_POINTS);
+  });
+
+  it('offers every hint from the start, priced and unbought', () => {
+    const s = only('Volcano Room');
+    expect(s.offers().map((o) => o.kind)).toEqual(HINT_ORDER);
+    expect(s.offers().every((o) => !o.bought && o.affordable)).toBe(true);
+    expect(s.offers().map((o) => o.cost)).toEqual(HINT_ORDER.map((k) => HINT_COSTS[k]));
+  });
+
+  it('reveals only what was bought, and charges for it', () => {
+    const s = only('Volcano Room');
+    s.buyHint('enemies');
+    expect(s.hints().map((h) => h.kind)).toEqual(['enemies']);
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.enemies);
+  });
+
+  /** No schedule: the name is buyable first if that is what you are missing. */
+  it('lets hints be bought in any order', () => {
+    const s = only('Volcano Room');
+    s.buyHint('name');
+    expect(s.hints().map((h) => h.kind)).toEqual(['name']);
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name);
+  });
+
+  it('lists what has been bought in a settled order, whatever order it was bought in', () => {
+    const s = only('Volcano Room');
+    s.buyHint('neighbour');
+    s.buyHint('area');
+    expect(s.hints().map((h) => h.kind)).toEqual(['area', 'neighbour']);
+  });
+
+  it('will not sell the same hint twice', () => {
+    const s = only('Volcano Room');
+    s.buyHint('area');
+    expect(() => s.buyHint('area')).toThrow(/already/i);
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.area);
+  });
+
+  it('marks what has been bought', () => {
+    const s = only('Volcano Room');
+    s.buyHint('area');
+    expect(s.offers().find((o) => o.kind === 'area')?.bought).toBe(true);
+    expect(s.offers().find((o) => o.kind === 'enemies')?.bought).toBe(false);
+  });
+
+  it('stops offering what there is no longer the money for', () => {
+    const s = only('Volcano Room');
+    s.buyHint('name');
+    s.buyHint('diagram');
+    expect(s.points()).toBe(20);
+    expect(s.offers().find((o) => o.kind === 'neighbour')?.affordable).toBe(true);
+    s.buyHint('neighbour');
+    expect(s.points()).toBe(0);
+    expect(s.offers().some((o) => o.affordable)).toBe(false);
+  });
+
+  it('refuses a hint there are no points for, and charges nothing', () => {
+    const s = only('Volcano Room');
+    s.buyHint('name');
+    s.buyHint('diagram');
+    s.buyHint('neighbour');
+    expect(() => s.buyHint('area')).toThrow(/points/i);
+    expect(s.points()).toBe(0);
+    expect(s.hints().map((h) => h.kind)).not.toContain('area');
+  });
+
+  it('keeps what was left when the room is solved', () => {
+    const s = only('Volcano Room');
+    s.buyHint('area');
+    s.guess('Volcano Room');
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.area);
+  });
+
+  it('is worth nothing once the room is lost', () => {
+    const s = only('Volcano Room');
+    s.buyHint('area');
+    for (let i = 0; i < MAX_GUESSES; i += 1) s.guess('Landing Site');
+    expect(s.state()).toBe('lost');
+    expect(s.points()).toBe(0);
+  });
+
+  it('is worth nothing once given up on', () => {
+    const s = only('Volcano Room');
+    s.giveUp();
+    expect(s.points()).toBe(0);
+  });
+
+  it('shows every hint once the room is over, bought or not', () => {
+    const s = only('Volcano Room');
+    s.giveUp();
+    expect(s.hints().map((h) => h.kind)).toEqual(HINT_ORDER);
+  });
+});
+
 describe('hints', () => {
   const allHints = (name: string) => {
     const s = only(name);
-    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+    s.giveUp();
     return new Map(s.hints().map((h) => [h.kind, h.text]));
   };
 
-  it('names the original map area first', () => {
+  it('names the original map area', () => {
     expect(allHints('Volcano Room').get('area')).toContain('Norfair');
   });
 
-  it('lists the enemies second', () => {
+  it('lists the enemies', () => {
     expect(allHints('Volcano Room').get('enemies')).toContain('Fune');
   });
 
@@ -153,24 +233,24 @@ describe('hints', () => {
     expect(allHints('Crateria Map Room').get('enemies')).toMatch(/no enemies/i);
   });
 
-  it('names every connecting room third, without labouring where they come from', () => {
+  it('names every connecting room, without labouring where they come from', () => {
     const text = allHints('Volcano Room').get('neighbour') ?? '';
     for (const n of ['Kronic Boost Room', 'Spiky Platforms Tunnel']) expect(text).toContain(n);
     expect(text).not.toMatch(/original map|vanilla/i);
   });
 
-  it('offers the room diagram fourth', () => {
+  it('offers the room diagram', () => {
     expect(allHints('Volcano Room').get('diagram')).toContain('VolcanoRoom_116.png');
   });
 
-  /** Last of all, and the most generous: the shape of the name itself. */
-  it('sketches the name last', () => {
+  /** The most expensive, and the most generous: the shape of the name itself. */
+  it('sketches the name', () => {
     expect(allHints('Volcano Room').get('name')).toBe('V______ R___');
   });
 
   it('gives a diagram url that is absolute and pinned', () => {
     const s = only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+    s.buyHint('diagram');
     const diagram = s.hints().find((h) => h.kind === 'diagram');
     expect(diagram?.imageUrl).toMatch(/^https:\/\/cdn\.jsdelivr\.net\/gh\/vg-json-data\//);
   });
@@ -189,24 +269,27 @@ describe('scoring and progress', () => {
 
   it('counts guesses used across a room', () => {
     const s = make();
-    s.skip();
-    s.skip();
+    const wrong = rooms.find((r) => r.id !== s.current().id) as { name: string };
+    s.guess(wrong.name);
+    s.guess(wrong.name);
     s.guess(s.current().name);
     expect(s.score()).toEqual({ asked: 1, solved: 1, guessesUsed: 3 });
   });
 
   it('counts a lost room as asked but not solved', () => {
     const s = make();
-    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
-    expect(s.score()).toEqual({ asked: 1, solved: 0, guessesUsed: MAX_GUESSES });
+    s.giveUp();
+    expect(s.score()).toEqual({ asked: 1, solved: 0, guessesUsed: 0 });
   });
 
-  it('resets guesses and hints on the next room', () => {
+  it('resets guesses, hints and points on the next room', () => {
     const s = make();
+    s.buyHint('area');
     s.guess(s.current().name);
     s.next();
     expect(s.guessesLeft()).toBe(MAX_GUESSES);
     expect(s.hints()).toEqual([]);
+    expect(s.points()).toBe(STARTING_POINTS);
     expect(s.state()).toBe('guessing');
   });
 
@@ -253,9 +336,12 @@ describe('rounds', () => {
   const make = (seed = 3) => createSession({
     rooms, settings: TOURNAMENT_SETTINGS, random: seeded(seed),
   });
-  const finishRoom = (s: ReturnType<typeof make>) => {
-    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+  const playRound = (s: ReturnType<typeof make>, finish: (s: ReturnType<typeof make>) => void) => {
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finish(s); s.next(); }
+    finish(s);
   };
+  const giveUp = (s: ReturnType<typeof make>) => s.giveUp();
+  const solve = (s: ReturnType<typeof make>) => { s.guess(s.current().name); };
 
   it('is not over before it has begun', () => {
     const s = make();
@@ -265,30 +351,27 @@ describe('rounds', () => {
 
   it('is over after the round length of rooms', () => {
     const s = make();
-    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
-    finishRoom(s);
+    playRound(s, giveUp);
     expect(s.roundComplete()).toBe(true);
   });
 
   it('counts the room in play once it is finished with', () => {
     const s = make();
-    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { s.giveUp(); s.next(); }
     expect(s.roundComplete()).toBe(false);
-    finishRoom(s);
+    s.giveUp();
     expect(s.roundComplete()).toBe(true);
   });
 
   it('refuses another room until the next round is started', () => {
     const s = make();
-    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
-    finishRoom(s);
+    playRound(s, giveUp);
     expect(() => s.next()).toThrow(/round/i);
   });
 
   it('hands back the rooms of the round just played', () => {
     const s = make();
-    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
-    finishRoom(s);
+    playRound(s, giveUp);
     const round = s.roundResults();
     expect(round).toHaveLength(ROUND_LENGTH);
     expect(round.every((r) => r.solved === false)).toBe(true);
@@ -296,14 +379,14 @@ describe('rounds', () => {
 
   it('starts the next round clean', () => {
     const s = make();
-    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
-    finishRoom(s);
+    playRound(s, giveUp);
     s.startRound();
     expect(s.roundComplete()).toBe(false);
     expect(s.roundNumber()).toBe(2);
     expect(s.roundResults()).toEqual([]);
     expect(s.state()).toBe('guessing');
     expect(s.guessesLeft()).toBe(MAX_GUESSES);
+    expect(s.roundPoints()).toBe(0);
   });
 
   it('will not start another round in the middle of one', () => {
@@ -313,18 +396,38 @@ describe('rounds', () => {
 
   it('keeps every room played across rounds available to look back at', () => {
     const s = make();
-    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
-    finishRoom(s);
+    playRound(s, giveUp);
     s.startRound();
     expect(s.played()).toHaveLength(ROUND_LENGTH);
   });
 
-  it('records what each room cost', () => {
+  it('records what each room cost and what it was worth', () => {
     const s = make();
+    s.buyHint('area');
     s.guess(s.current().name);
-    const solvedName = s.played().length === 0 ? s.current().name : '';
     s.next();
-    expect(s.played()[0]).toMatchObject({ solved: true, guessesUsed: 1 });
-    void solvedName;
+    expect(s.played()[0]).toMatchObject({
+      solved: true, guessesUsed: 1, points: STARTING_POINTS - HINT_COSTS.area,
+    });
+  });
+
+  it('adds up the points over the round', () => {
+    const s = make();
+    playRound(s, solve);
+    expect(s.roundPoints()).toBe(STARTING_POINTS * ROUND_LENGTH);
+  });
+
+  it('counts a room towards the round total as soon as it is over', () => {
+    const s = make();
+    expect(s.roundPoints()).toBe(0);
+    s.guess(s.current().name);
+    expect(s.roundPoints()).toBe(STARTING_POINTS);
+  });
+
+  it('adds nothing for a room that was never got', () => {
+    const s = make();
+    s.buyHint('area');
+    s.giveUp();
+    expect(s.roundPoints()).toBe(0);
   });
 });

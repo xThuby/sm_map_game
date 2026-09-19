@@ -15,6 +15,15 @@ export interface Stats {
   /** Rooms solved on each guess: index 0 is a first-guess win. */
   byGuess: number[];
   rooms: Record<string, RoomStat>;
+  /** Points banked over every room ever played, lost ones included at zero. */
+  points: number;
+  /**
+   * How many rooms those points are spread over. Not the same as `played`: stats saved
+   * before points existed count towards one and not the other.
+   */
+  pointedRooms: number;
+  /** The best round total. A score is a round's, not a room's. */
+  bestRound: number;
 }
 
 export interface RoomOutcome {
@@ -22,6 +31,8 @@ export interface RoomOutcome {
   roomName: string;
   solved: boolean;
   guessesUsed: number;
+  /** What the room was worth once the hints bought on it were paid for. */
+  points: number;
 }
 
 export interface Bar {
@@ -41,7 +52,10 @@ export interface StrugglingRoom {
 }
 
 export function emptyStats(): Stats {
-  return { played: 0, lost: 0, byGuess: Array(MAX_GUESSES).fill(0), rooms: {} };
+  return {
+    played: 0, lost: 0, byGuess: Array(MAX_GUESSES).fill(0), rooms: {},
+    points: 0, pointedRooms: 0, bestRound: 0,
+  };
 }
 
 /** Returns new stats rather than changing the ones given. */
@@ -53,8 +67,11 @@ export function recordRoom(stats: Stats, outcome: RoomOutcome): Stats {
   }
   const before = stats.rooms[outcome.roomName] ?? { attempts: 0, solved: 0, guesses: 0 };
   return {
+    ...stats,
     played: stats.played + 1,
     lost: stats.lost + (outcome.solved ? 0 : 1),
+    points: stats.points + outcome.points,
+    pointedRooms: stats.pointedRooms + 1,
     byGuess,
     rooms: {
       ...stats.rooms,
@@ -65,6 +82,17 @@ export function recordRoom(stats: Stats, outcome: RoomOutcome): Stats {
       },
     },
   };
+}
+
+/** Returns new stats rather than changing the ones given. */
+export function recordRound(stats: Stats, points: number): Stats {
+  return { ...stats, bestRound: Math.max(stats.bestRound, points) };
+}
+
+/** Points a room has been worth on average, rounded. Rooms never got count as zero. */
+export function averagePoints(stats: Stats): number {
+  if (stats.pointedRooms === 0) return 0;
+  return Math.round(stats.points / stats.pointedRooms);
 }
 
 /** Percentage of rooms solved, rounded. */
@@ -102,11 +130,19 @@ export function strugglingRooms(stats: Stats, limit: number): StrugglingRoom[] {
     .slice(0, limit);
 }
 
-function isStats(value: unknown): value is Stats {
+/**
+ * Points arrived after stats did, so they are optional here: a save from before them is
+ * worth keeping, and loadStats fills the missing fields in with nothing banked.
+ */
+function isStats(value: unknown): value is Partial<Stats> & Stats {
   const s = value as Stats | null;
   return !!s && typeof s.played === 'number' && typeof s.lost === 'number'
     && Array.isArray(s.byGuess) && s.byGuess.length === MAX_GUESSES
-    && typeof s.rooms === 'object' && s.rooms !== null;
+    && typeof s.rooms === 'object' && s.rooms !== null
+    && ['points', 'pointedRooms', 'bestRound'].every((k) => {
+      const v = (s as unknown as Record<string, unknown>)[k];
+      return v === undefined || typeof v === 'number';
+    });
 }
 
 /**
@@ -118,7 +154,7 @@ export function loadStats(storage: Storage | null): Stats {
     const raw = storage?.getItem(STORAGE_KEY);
     if (!raw) return emptyStats();
     const parsed: unknown = JSON.parse(raw);
-    return isStats(parsed) ? parsed : emptyStats();
+    return isStats(parsed) ? { ...emptyStats(), ...parsed } : emptyStats();
   } catch {
     return emptyStats();
   }

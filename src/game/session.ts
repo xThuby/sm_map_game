@@ -3,25 +3,43 @@ import type { NameIndex } from './matching';
 import { equivalenceGroup, loadRooms } from '../rooms';
 import type { RenderSettings, Room } from '../types';
 
-/**
- * Five guesses, each spent one costing you the next hint. Modelled on the daily
- * guess-the-thing games: skipping buys a hint rather than abandoning the room.
- *
- * Five hints over six guesses means the last hint is on screen for one final guess, rather
- * than arriving with the answer where it could not be acted on.
- */
+/** How many wrong answers a room allows before it is lost. */
 export const MAX_GUESSES = 6;
 
 /** How many rooms make a round, after which the player is shown how they did. */
 export const ROUND_LENGTH = 6;
+
+/** What a room is worth if it is named without buying a thing. */
+export const STARTING_POINTS = 100;
 
 export type HintKind = 'area' | 'enemies' | 'neighbour' | 'diagram' | 'name';
 
 /** Least to most generous. The name itself is the last thing worth giving away. */
 export const HINT_ORDER: HintKind[] = ['area', 'enemies', 'neighbour', 'diagram', 'name'];
 
-/** How many hints are showing once this many guesses have been spent: one each. */
-const HINTS_AFTER: number[] = [0, 1, 2, 3, 4, 5, HINT_ORDER.length];
+/**
+ * What each hint costs out of the room's hundred points.
+ *
+ * Every hint together comes to 120, which is deliberately more than a room is worth: the
+ * player has to decide which ones are worth having rather than working down a list. The
+ * name is half a room on its own, because knowing the room and not being able to name it
+ * is the case this is all for — it should be buyable, and it should hurt.
+ */
+export const HINT_COSTS: Record<HintKind, number> = {
+  area: 10,
+  enemies: 10,
+  neighbour: 20,
+  diagram: 30,
+  name: 50,
+};
+
+const HINT_LABELS: Record<HintKind, string> = {
+  area: 'Original map area',
+  enemies: 'Enemies',
+  neighbour: 'Connects to',
+  diagram: 'The room itself',
+  name: 'The name',
+};
 
 /**
  * The name with everything but the first letter of each word struck out, as in hangman.
@@ -55,6 +73,16 @@ export interface Hint {
   text: string;
   /** Set on the diagram hint: the room as it looks in game. */
   imageUrl?: string;
+}
+
+/** A hint as the player sees it before buying: what it is, what it costs, whether it can be. */
+export interface HintOffer {
+  kind: HintKind;
+  label: string;
+  cost: number;
+  bought: boolean;
+  /** False once it is bought, or once there are too few points left to pay for it. */
+  affordable: boolean;
 }
 
 export interface Grade {
@@ -91,31 +119,31 @@ export function shuffleBag<T>(items: readonly T[], random: () => number): Bag<T>
 function hintFor(kind: HintKind, room: Room): Hint {
   switch (kind) {
     case 'area':
-      return { kind, label: 'Original map area', text: room.area };
+      return { kind, label: HINT_LABELS[kind], text: room.area };
     case 'enemies': {
       if (room.enemies.length === 0) {
-        return { kind, label: 'Enemies', text: 'This room has no enemies.' };
+        return { kind, label: HINT_LABELS[kind], text: 'This room has no enemies.' };
       }
       const list = room.enemies
         .map((e) => (e.quantity > 1 ? `${e.quantity} ${e.name}` : e.name))
         .join(', ');
-      return { kind, label: 'Enemies', text: list };
+      return { kind, label: HINT_LABELS[kind], text: list };
     }
     case 'neighbour':
       return {
         kind,
-        label: 'Connects to',
+        label: HINT_LABELS[kind],
         text: room.neighbours.length === 0 ? 'Nothing' : room.neighbours.join(', '),
       };
     case 'diagram':
       return {
         kind,
-        label: 'The room itself',
+        label: HINT_LABELS[kind],
         text: room.diagram ?? 'No diagram for this room.',
         ...(room.diagram ? { imageUrl: `${CDN}@${SM_JSON_COMMIT}/${room.diagram}` } : {}),
       };
     case 'name':
-      return { kind, label: 'The name', text: nameHint(room.name) };
+      return { kind, label: HINT_LABELS[kind], text: nameHint(room.name) };
   }
 }
 
@@ -137,6 +165,8 @@ export interface PlayedRoom {
   room: Room;
   solved: boolean;
   guessesUsed: number;
+  /** What the room was worth when it was finished with: zero if it was never got. */
+  points: number;
 }
 
 export interface Session {
@@ -152,12 +182,20 @@ export interface Session {
   startRound(): void;
   state(): RoomState;
   guessesLeft(): number;
+  /** What the room in play is still worth: a hundred less whatever hints were bought. */
+  points(): number;
+  /** The points banked this round, the room in play included once it is over. */
+  roundPoints(): number;
+  /** Only the hints that have been bought — everything, once the room is over. */
   hints(): Hint[];
+  /** Every hint there is, priced, whether bought or not. */
+  offers(): HintOffer[];
+  buyHint(kind: HintKind): void;
   /** Every room indistinguishable from the current one, including it. */
   group(): Room[];
   guess(input: string): Grade;
-  /** Spend a guess to buy the next hint, without naming a room. */
-  skip(): void;
+  /** End the room unsolved, for when there is nothing left worth guessing. */
+  giveUp(): void;
   next(): void;
   score(): { asked: number; solved: number; guessesUsed: number };
   lastGrade(): Grade | null;
@@ -173,6 +211,8 @@ export function createSession(options: SessionOptions): Session {
   let room = bag.take();
   let spent = 0;
   let solved = false;
+  let gaveUp = false;
+  let bought = new Set<HintKind>();
   let grade: Grade | null = null;
   let asked = 1;
   let totalSolved = 0;
@@ -181,35 +221,42 @@ export function createSession(options: SessionOptions): Session {
   let roundStart = 0;
   let round = 1;
 
+  const state = (): RoomState => {
+    if (solved) return 'solved';
+    return gaveUp || spent >= MAX_GUESSES ? 'lost' : 'guessing';
+  };
+
+  /** A room never got is worth nothing, however little was spent working on it. */
+  const points = (): number => {
+    if (state() === 'lost') return 0;
+    return STARTING_POINTS - [...bought].reduce((sum, kind) => sum + HINT_COSTS[kind], 0);
+  };
+
+  const record = (): PlayedRoom => ({ room, solved, guessesUsed: spent, points: points() });
+
   /** The room in play counts towards the round as soon as it is finished with. */
   const roundResults = (): PlayedRoom[] => {
     const done = finished.slice(roundStart);
-    return state() === 'guessing'
-      ? done
-      : [...done, { room, solved, guessesUsed: spent }];
+    return state() === 'guessing' ? done : [...done, record()];
   };
   const roundComplete = () => roundResults().length >= ROUND_LENGTH;
 
   const draw = (): void => {
-    finished.push({ room, solved, guessesUsed: spent });
+    finished.push(record());
     room = bag.take();
     spent = 0;
     solved = false;
+    gaveUp = false;
+    bought = new Set();
     grade = null;
     asked += 1;
   };
 
-  const state = (): RoomState => {
-    if (solved) return 'solved';
-    return spent >= MAX_GUESSES ? 'lost' : 'guessing';
-  };
-
+  /** What has been bought, in a settled order however it was bought — or all of it, once
+   * the room is over and there is nothing left to give away. */
   const revealed = (): Hint[] => {
-    // A lost room shows everything; otherwise follow the schedule.
-    const shown = state() === 'lost'
-      ? HINT_ORDER.length
-      : (HINTS_AFTER[Math.min(spent, HINTS_AFTER.length - 1)] as number);
-    return HINT_ORDER.slice(0, shown).map((kind) => hintFor(kind, room));
+    const shown = state() === 'guessing' ? HINT_ORDER.filter((k) => bought.has(k)) : HINT_ORDER;
+    return shown.map((kind) => hintFor(kind, room));
   };
 
   const requirePlaying = () => {
@@ -225,9 +272,28 @@ export function createSession(options: SessionOptions): Session {
     current: () => room,
     state,
     guessesLeft: () => Math.max(MAX_GUESSES - spent, 0),
+    points,
+    roundPoints: () => roundResults().reduce((sum, r) => sum + r.points, 0),
     hints: revealed,
     group: () => equivalenceGroup(room, settings),
     lastGrade: () => grade,
+
+    offers: () => HINT_ORDER.map((kind) => ({
+      kind,
+      label: HINT_LABELS[kind],
+      cost: HINT_COSTS[kind],
+      bought: bought.has(kind),
+      affordable: !bought.has(kind) && HINT_COSTS[kind] <= points(),
+    })),
+
+    buyHint(kind) {
+      requirePlaying();
+      if (bought.has(kind)) throw new Error(`The ${kind} hint has already been bought`);
+      if (HINT_COSTS[kind] > points()) {
+        throw new Error(`Not enough points left for the ${kind} hint`);
+      }
+      bought.add(kind);
+    },
 
     /**
      * Graded against every room that paints the same pixels, not just the one asked about:
@@ -258,10 +324,10 @@ export function createSession(options: SessionOptions): Session {
       return result;
     },
 
-    skip() {
+    giveUp() {
       requirePlaying();
       grade = null;
-      spend();
+      gaveUp = true;
     },
 
     played: () => [...finished],

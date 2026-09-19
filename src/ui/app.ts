@@ -6,7 +6,8 @@ import { pixelRenderer } from '../render/pixelRenderer';
 import { fitTileSize, VIEWPORT } from '../render/renderer';
 import { allPars, PAR_OVERRIDES } from '../game/par';
 import {
-  emptyStats, recordRoom, winRate, guessHistogram, strugglingRooms, loadStats, saveStats,
+  emptyStats, recordRoom, recordRound, winRate, guessHistogram, strugglingRooms,
+  averagePoints, loadStats, saveStats,
 } from '../game/stats';
 import type { Stats } from '../game/stats';
 import type { Renderer } from '../render/renderer';
@@ -81,14 +82,19 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
         <p>Identify the room from its Map Rando map tiles.</p>
         <p data-role="score"></p>
         <p>
-          <button data-action="toggle-view" hidden>Show the map</button>
+          <span data-role="buy-diagram"></span>
+          <button data-action="toggle-view" hidden>Show the room</button>
           <span data-role="viewing"></span>
         </p>
         <div data-role="stage" style="display:inline-block;line-height:0"
           ><canvas data-role="map"></canvas></div>
       </div>
       <div data-role="right" style="flex:1 1 340px;position:sticky;top:16px">
-        <p><span data-role="guesses"></span> <span data-role="par"></span></p>
+        <p>
+          <span data-role="guesses" style="margin-right:16px"></span>
+          <span data-role="points" style="margin-right:16px"></span>
+          <span data-role="par"></span>
+        </p>
         <p>
           <label>Which room is this?
             <input name="answer" type="text" autocomplete="off" size="32">
@@ -96,14 +102,15 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
         </p>
         <p>
           <button data-action="guess">Answer</button>
-          <button data-action="skip">Skip (costs a guess, gives a hint)</button>
+          <button data-action="give-up">Give up</button>
           <button data-action="next" hidden>Next room</button>
           <button data-action="new-round" hidden>Start another round</button>
         </p>
         <ul data-role="suggestions" style="list-style:none;padding:0;margin:4px 0"></ul>
         <p data-role="verdict"></p>
         <div data-role="facts">
-          <p data-role="room-name" style="font-weight:bold;font-size:1.2em"></p>
+          <p data-role="name-line" style="font-weight:bold;font-size:1.2em"
+            ><span data-role="room-name"></span> </p>
           <ul data-role="fact-list"></ul>
           <p data-role="alias-link"></p>
         </div>
@@ -123,14 +130,17 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   const input = el<HTMLInputElement>('input[name=answer]');
   const suggestions = el<HTMLUListElement>('[data-role=suggestions]');
   const verdict = el<HTMLParagraphElement>('[data-role=verdict]');
-  const roomName = el<HTMLParagraphElement>('[data-role=room-name]');
+  const roomName = el<HTMLSpanElement>('[data-role=room-name]');
+  const nameLine = el<HTMLParagraphElement>('[data-role=name-line]');
   const factList = el<HTMLUListElement>('[data-role=fact-list]');
   const aliasLink = el<HTMLParagraphElement>('[data-role=alias-link]');
   const score = el<HTMLParagraphElement>('[data-role=score]');
   const guessButton = el<HTMLButtonElement>('button[data-action=guess]');
-  const skipButton = el<HTMLButtonElement>('button[data-action=skip]');
+  const giveUpButton = el<HTMLButtonElement>('button[data-action=give-up]');
   const nextButton = el<HTMLButtonElement>('button[data-action=next]');
   const toggleButton = el<HTMLButtonElement>('button[data-action=toggle-view]');
+  const buyDiagram = el<HTMLSpanElement>('[data-role=buy-diagram]');
+  const pointsLabel = el<HTMLSpanElement>('[data-role=points]');
   const viewing = el<HTMLSpanElement>('[data-role=viewing]');
   const par = el<HTMLSpanElement>('[data-role=par]');
   const guessesLabel = el<HTMLSpanElement>('[data-role=guesses]');
@@ -146,6 +156,8 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   let thisRound: Stats = emptyStats();
   /** Guards against filing the same room twice, since redraws are frequent. */
   let recorded = false;
+  /** Which round's total has been banked, so a redraw does not bank it again. */
+  let roundBanked = 0;
 
   /**
    * How many guesses each room ought to take, worked out once. It is shown to the player as
@@ -163,12 +175,13 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   let suggestionAt = 0;
   const currentSuggestions = () => autocomplete(input.value, index, SUGGESTION_LIMIT);
 
-  /** Enter on an empty box is as likely a stray keypress as a decision, so it asks first. */
-  let skipArmed = false;
   /** How far back through finished rooms we are looking. 0 is the room in play. */
   let lookingBack = 0;
-  /** Whether the stage shows the map rather than the room's own picture, once both exist. */
-  let showMap = false;
+  /**
+   * Whether the stage shows the room's own picture rather than the map. The picture is
+   * bought now, so it is off until somebody pays for it or reaches for the toggle.
+   */
+  let showDiagram = false;
 
   /** The room on screen, which is the one in play unless we are looking back. */
   function viewedRoom(): Room {
@@ -178,10 +191,31 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       : (finished[finished.length - lookingBack] as PlayedRoom).room;
   }
 
-  /** A finished room's picture is always available; the room in play only once revealed. */
-  function diagramAvailable(): boolean {
-    if (lookingBack > 0) return viewedRoom().diagram !== null;
-    return session.hints().some((h) => h.kind === 'diagram' && h.imageUrl);
+  /** The picture can be shown once it has been bought, or once the room is over. */
+  function diagramShowable(): boolean {
+    if (lookingBack > 0 || session.state() !== 'guessing') return viewedRoom().diagram !== null;
+    return session.offers().some((o) => o.kind === 'diagram' && o.bought);
+  }
+
+  /**
+   * The price tag for a hint, put where its answer will appear so the trade is plain. Gone
+   * once the hint is bought or the room is over; disabled, rather than hidden, when there
+   * are too few points left — what you cannot afford is worth knowing.
+   */
+  function priceTag(kind: HintKind): string {
+    if (lookingBack > 0 || session.state() !== 'guessing') return '';
+    if (kind === 'diagram' && viewedRoom().diagram === null) return '';
+    const offer = session.offers().find((o) => o.kind === kind);
+    if (!offer || offer.bought) return '';
+    return `<button data-action="buy" data-hint="${kind}"${offer.affordable ? '' : ' disabled'}
+      >reveal for ${offer.cost}</button>`;
+  }
+
+  /** The points on the room being looked at, which is the one in play unless looking back. */
+  function viewedPoints(): number {
+    if (lookingBack === 0) return session.points();
+    const finished = session.played();
+    return (finished[finished.length - lookingBack] as PlayedRoom).points;
   }
 
   /** Each room is drawn as large as it will go without running off the page. */
@@ -196,13 +230,15 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
    */
   function drawStage(): void {
     const room = viewedRoom();
-    const available = diagramAvailable();
+    const available = diagramShowable();
     const existing = stage.querySelector('img[data-role=diagram]');
 
+    const diagramPrice = priceTag('diagram');
+    buyDiagram.innerHTML = diagramPrice ? `The room in game: ${diagramPrice}` : '';
     toggleButton.hidden = !available;
-    toggleButton.textContent = showMap ? 'Show the room' : 'Show the map';
+    toggleButton.textContent = showDiagram ? 'Show the map' : 'Show the room';
 
-    if (!available || showMap) {
+    if (!available || !showDiagram) {
       existing?.remove();
       canvas.hidden = false;
       return;
@@ -233,12 +269,13 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       ? `Looking back at ${viewedRoom().name} — right arrow to return`
       : '';
     guessesLabel.textContent = !back && !over ? `${plural(session.guessesLeft(), 'guess')} left` : '';
+    pointsLabel.textContent = plural(viewedPoints(), 'point');
 
     // Looking back is read-only: that room is already finished with.
     const roundOver = session.roundComplete();
     input.hidden = back;
     guessButton.hidden = back || over;
-    skipButton.hidden = back || over;
+    giveUpButton.hidden = back || over;
     nextButton.hidden = back || !over || roundOver;
     newRoundButton.hidden = back || !roundOver;
     if (back) suggestions.innerHTML = '';
@@ -253,9 +290,18 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       roomName: session.current().name,
       solved: session.state() === 'solved',
       guessesUsed: MAX_GUESSES - session.guessesLeft(),
+      points: session.points(),
     };
     allTime = recordRoom(allTime, outcome);
     thisRound = recordRoom(thisRound, outcome);
+    saveStats(storage, allTime);
+  }
+
+  /** Banks the round's total against the best ever, once the round is done. */
+  function recordRoundTotal(): void {
+    if (!session.roundComplete() || roundBanked === session.roundNumber()) return;
+    roundBanked = session.roundNumber();
+    allTime = recordRound(allTime, session.roundPoints());
     saveStats(storage, allTime);
   }
 
@@ -291,6 +337,9 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
 
     summary.innerHTML = `
       <h2>Round ${session.roundNumber()} done</h2>
+      <p data-role="round-points">${plural(session.roundPoints(), 'point')}</p>
+      <p data-role="all-points">All time: average ${plural(averagePoints(allTime), 'point')}
+        a room, best round ${allTime.bestRound}</p>
       <p data-role="win-rate">Solved ${roundRate}% this round
         <span data-role="win-diff">(${diff >= 0 ? '+' : ''}${diff} against ${allRate}% all time)</span>
       </p>
@@ -318,11 +367,14 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     const over = lookingBack > 0 || session.state() !== 'guessing';
     const shown = new Set(session.hints().map((h) => h.kind));
     const known = (kind: HintKind, value: string) =>
-      (over || lookingBack > 0 || shown.has(kind) ? value : '?');
+      (over || shown.has(kind) ? value : priceTag(kind));
 
     roomName.textContent = over
       ? room.name
       : (shown.has('name') ? nameHint(room.name) : '???');
+    // The name's price sits beside the name rather than in the list below it.
+    nameLine.querySelector('button[data-action=buy]')?.remove();
+    if (!over && !shown.has('name')) nameLine.insertAdjacentHTML('beforeend', priceTag('name'));
 
     const enemies = room.enemies.length === 0
       ? 'none'
@@ -390,17 +442,12 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
 
   function redraw(): void {
     recordOutcome();
+    recordRoundTotal();
     drawStage();
     drawStatus();
     drawSummary();
     drawFacts();
     drawSuggestions();
-  }
-
-  function standDown(): void {
-    if (!skipArmed) return;
-    skipArmed = false;
-    verdict.textContent = '';
   }
 
   function advance(): void {
@@ -410,35 +457,16 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     input.value = '';
     suggestionAt = 0;
     lookingBack = 0;
-    showMap = false;
-    standDown();
+    showDiagram = false;
     verdict.textContent = '';
     drawRoom();
     redraw();
     input.focus();
   }
 
-  /**
-   * Enter on an empty box offers to skip, asking once first: it is as likely a stray
-   * keypress as a decision. The Answer button does not, because a button labelled Answer
-   * spending a guess on a hint would be a surprise.
-   */
-  function submitEmpty(): void {
-    if (!skipArmed) {
-      skipArmed = true;
-      verdict.textContent = 'Press Enter again to skip and take a hint.';
-      return;
-    }
-    skipArmed = false;
-    verdict.textContent = '';
-    session.skip();
-    redraw();
-  }
-
   function submit(): void {
     if (session.state() !== 'guessing') return;
     if (input.value.trim() === '') return;
-    standDown();
 
     const grade = session.guess(input.value);
 
@@ -446,7 +474,13 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       verdict.textContent = grade.suggestion
         ? `Did you mean ${grade.suggestion.name}?`
         : 'That is not a room name.';
-    } else if (grade.correct) {
+      // A typo costs nothing and is graded against nothing, so wiping the box would only
+      // throw away work the player has to redo.
+      redraw();
+      return;
+    }
+
+    if (grade.correct) {
       verdict.textContent = grade.answer && grade.answer.id !== session.current().id
         ? `Correct — ${grade.answer.name} is indistinguishable from this room.`
         : 'Correct.';
@@ -458,11 +492,26 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   }
 
   guessButton.addEventListener('click', submit);
-  skipButton.addEventListener('click', () => {
+  giveUpButton.addEventListener('click', () => {
     if (session.state() !== 'guessing') return;
-    session.skip();
+    session.giveUp();
     verdict.textContent = '';
     redraw();
+  });
+
+  /**
+   * The price tags are redrawn constantly, so the click is caught on the way up rather than
+   * bound to buttons that will not survive the next redraw.
+   */
+  root.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest('button[data-action=buy]');
+    if (!button || lookingBack > 0 || session.state() !== 'guessing') return;
+    const kind = button.getAttribute('data-hint') as HintKind;
+    session.buyHint(kind);
+    // Paying for the picture is asking to see it.
+    if (kind === 'diagram') showDiagram = true;
+    redraw();
+    input.focus();
   });
   nextButton.addEventListener('click', advance);
   newRoundButton.addEventListener('click', () => {
@@ -471,14 +520,12 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     recorded = false;
     input.value = '';
     lookingBack = 0;
-    showMap = false;
-    standDown();
+    showDiagram = false;
     drawRoom();
     redraw();
     input.focus();
   });
   input.addEventListener('input', () => {
-    standDown();
     // New text means a new list; start at the top of it again.
     suggestionAt = 0;
     drawSuggestions();
@@ -487,14 +534,10 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     const item = (event.target as HTMLElement).closest('li[data-index]');
     if (item) takeSuggestion(Number(item.getAttribute('data-index')));
   });
-  input.addEventListener('blur', standDown);
-
   input.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') { standDown(); return; }
-
     if (event.key === 'Enter') {
+      // An empty box has nothing to send, and nothing to buy: hints are bought by name.
       if (session.state() !== 'guessing') advance();
-      else if (input.value.trim() === '') submitEmpty();
       else submit();
       return;
     }
@@ -516,7 +559,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   });
 
   toggleButton.addEventListener('click', () => {
-    showMap = !showMap;
+    showDiagram = !showDiagram;
     drawRoom();
     redraw();
   });
@@ -531,7 +574,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     const next = Math.min(Math.max(lookingBack + step, 0), limit);
     if (next === lookingBack) return;
     lookingBack = next;
-    showMap = false;
+    showDiagram = false;
     drawRoom();
     redraw();
   }
