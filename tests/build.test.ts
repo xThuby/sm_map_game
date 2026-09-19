@@ -58,6 +58,23 @@ describe('production build', () => {
   });
 });
 
+describe('the page shell', () => {
+  /**
+   * Rooms are drawn with white walls on an unpainted backdrop. On a white page the outlines
+   * vanish completely, so a dark ground is a requirement rather than a preference.
+   */
+  it('gives the page a dark ground and light text', () => {
+    const html = readFileSync(resolve(repoRoot, 'index.html'), 'utf8');
+    expect(html).toMatch(/body\s*\{[^}]*background:\s*#000/);
+    expect(html).toMatch(/body\s*\{[^}]*color:\s*#fff/);
+  });
+
+  it('keeps links legible against it', () => {
+    const html = readFileSync(resolve(repoRoot, 'index.html'), 'utf8');
+    expect(html).toMatch(/\ba\s*\{[^}]*color:/);
+  });
+});
+
 describe('test harness', () => {
   it('runs', () => {
     expect(1 + 1).toBe(2);

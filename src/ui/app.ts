@@ -59,8 +59,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   root.innerHTML = `
     <p data-role="score"></p>
     <div data-role="stage" data-zoom="out"
-         style="display:inline-block;overflow:hidden;cursor:zoom-in;line-height:0;
-                background:#000;padding:16px"
+         style="display:inline-block;overflow:hidden;cursor:zoom-in;line-height:0"
       ><canvas data-role="map"></canvas></div>
     <p data-role="guesses"></p>
     <p>
