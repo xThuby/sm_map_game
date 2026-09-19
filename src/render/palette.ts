@@ -45,20 +45,18 @@ export const PALETTE: Record<Area, Record<number, Rgb>> = {
 export const AREAS_WITH_HEATED_PALETTE: Area[] = ['Crateria', 'Norfair', 'Tourian'];
 
 /**
- * A neutral palette for when the area should not be given away.
+ * The grey a Map Rando map screen uses for rooms outside the area being viewed: a mid grey
+ * body with white walls, and a brighter grey for heated rooms.
  *
- * It has to keep the real palettes' arrangement to look right: a bright fill for the room's
- * body, white walls, black backdrop. Every measured area colour sits around half luminance,
- * so the neutral fill matches that — a dark fill sinks into the backdrop and takes the liquid
- * dithers with it, since those alternate the fill with black.
- *
- * Heat is the one place this departs from a pure grey. It is the only hue on screen, so a
- * heated room is unmistakable, which is the point of dropping the area colour.
+ * This is what the game itself shows when the area is not the point, which is exactly our
+ * case — Map Rando reassigns rooms to areas per seed, so vanilla area colour would teach a
+ * signal that is not there. Heat reads as brightness rather than hue, as it does in every
+ * measured area palette.
  */
 export const NEUTRAL_PALETTE: Record<number, Rgb> = {
   0: BLACK,
-  1: [126, 132, 148],
-  2: [232, 128, 78],
+  1: [123, 123, 123],
+  2: [165, 165, 165],
   3: WHITE,
   4: BLACK,
   5: BLACK,
@@ -66,6 +64,27 @@ export const NEUTRAL_PALETTE: Record<number, Rgb> = {
   13: WHITE,
   15: GRAY_DOOR,
 };
+
+/**
+ * The dotted lattice behind the map, one dot every other pixel along each tile's top and
+ * left edge. Measured off Map Rando's own vanilla map render, where it is SNES rgb(6, 6, 6).
+ */
+export const GRID_COLOUR: Rgb = [49, 49, 49];
+export const GRID_DOTS: [number, number][] = [
+  [0, 0], [2, 0], [4, 0], [6, 0],
+  [0, 2], [0, 4], [0, 6],
+];
+
+/** The lattice as a tile-sized SVG, for use as a CSS background behind the map. */
+export function gridBackgroundUrl(): string {
+  const rgb = `rgb(${GRID_COLOUR[0]},${GRID_COLOUR[1]},${GRID_COLOUR[2]})`;
+  const dots = GRID_DOTS
+    .map(([x, y]) => `<rect x='${x}' y='${y}' width='1' height='1' fill='${rgb}'/>`)
+    .join('');
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' `
+    + `shape-rendering='crispEdges'>${dots}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
 
 /** Rough perceived brightness, 0-255. */
 export function luminance([r, g, b]: Rgb): number {

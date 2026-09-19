@@ -1,6 +1,6 @@
 import { resolveEdge } from '../signature';
 import { tileArt, variantName } from './tileArt';
-import { paletteFor } from './palette';
+import { paletteFor, gridBackgroundUrl } from './palette';
 import { grayDoorSide } from './grayDoors';
 import type { Renderer } from './renderer';
 import type { Edge, RenderSettings, Room, Side, Tile } from '../types';
@@ -224,6 +224,12 @@ export const pixelRenderer: Renderer = {
     const { width, height } = bitmapSize(room, settings);
     canvas.width = width;
     canvas.height = height;
+
+    // Backdrop pixels are left unpainted, so the lattice set here shows through them —
+    // including the gaps inside an L-shaped room — and scales with the canvas when zoomed.
+    canvas.style.backgroundColor = 'rgb(0, 0, 0)';
+    canvas.style.backgroundImage = gridBackgroundUrl();
+    canvas.style.backgroundSize = `${8 * scale}px ${8 * scale}px`;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D context is unavailable');

@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { renderTileBitmap, renderRoomBitmap, PALETTE_INDICES } from './pixelRenderer';
 import { grayDoorSide } from './grayDoors';
 import { TOURNAMENT_SETTINGS } from './renderer';
-import { PALETTE, NEUTRAL_PALETTE, AREAS_WITH_HEATED_PALETTE, paletteFor, luminance } from './palette';
+import {
+  PALETTE, NEUTRAL_PALETTE, AREAS_WITH_HEATED_PALETTE, paletteFor, luminance,
+  GRID_COLOUR, GRID_DOTS, gridBackgroundUrl,
+} from './palette';
 import type { Rgb } from './palette';
 import { FULLY_VISIBLE, SHAPE_ONLY } from '../signature';
 import { loadRooms } from '../rooms';
@@ -327,10 +330,21 @@ describe('the neutral palette', () => {
     expect(fill).toBeLessThan(Math.max(...areas) + 40);
   });
 
-  it('makes a heated room clearly different from a cold one', () => {
-    const cold = NEUTRAL_PALETTE[1] as Rgb;
-    const hot = NEUTRAL_PALETTE[2] as Rgb;
-    const distance = Math.hypot(hot[0] - cold[0], hot[1] - cold[1], hot[2] - cold[2]);
-    expect(distance).toBeGreaterThan(100);
+  /** Heat reads as brightness here, as it does in every measured area palette. */
+  it('makes a heated room clearly brighter than a cold one', () => {
+    expect(luminance(NEUTRAL_PALETTE[2] as Rgb))
+      .toBeGreaterThan(luminance(NEUTRAL_PALETTE[1] as Rgb) + 30);
+    expect(luminance(NEUTRAL_PALETTE[2] as Rgb))
+      .toBeLessThan(luminance(NEUTRAL_PALETTE[3] as Rgb) - 30);
+  });
+
+  it('keeps the lattice dim enough to stay behind the map', () => {
+    expect(luminance(GRID_COLOUR)).toBeLessThan(luminance(NEUTRAL_PALETTE[1] as Rgb) - 50);
+  });
+
+  it('draws the lattice along the top and left of each tile', () => {
+    expect(GRID_DOTS).toHaveLength(7);
+    expect(gridBackgroundUrl()).toMatch(/^url\("data:image\/svg\+xml,/);
+    expect(decodeURIComponent(gridBackgroundUrl())).toContain('rgb(49,49,49)');
   });
 });
