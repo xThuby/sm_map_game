@@ -80,3 +80,16 @@ describe('test harness', () => {
     expect(1 + 1).toBe(2);
   });
 });
+
+describe('the par review page', () => {
+  /** A tool for checking the par numbers, not part of the game; the README points at it. */
+  it('is built, but not linked from the game', () => {
+    expect(existsSync(resolve(dist, 'par.html'))).toBe(true);
+    const html = readFileSync(resolve(repoRoot, 'index.html'), 'utf8');
+    expect(html).not.toContain('par.html');
+  });
+
+  it('is written down somewhere findable', () => {
+    expect(readFileSync(resolve(repoRoot, 'README.md'), 'utf8')).toContain('par.html');
+  });
+});

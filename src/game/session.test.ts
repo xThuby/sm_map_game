@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createSession, shuffleBag, MAX_GUESSES, HINT_ORDER, nameHint } from './session';
+import {
+  createSession, shuffleBag, MAX_GUESSES, HINT_ORDER, nameHint, ROUND_LENGTH,
+} from './session';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS } from '../render/renderer';
 
@@ -244,5 +246,85 @@ describe('nameHint', () => {
         expect(isWordStart || !/[A-Za-z0-9]/.test(ch), `${room.name} at ${i}`).toBe(true);
       }
     }
+  });
+});
+
+describe('rounds', () => {
+  const make = (seed = 3) => createSession({
+    rooms, settings: TOURNAMENT_SETTINGS, random: seeded(seed),
+  });
+  const finishRoom = (s: ReturnType<typeof make>) => {
+    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+  };
+
+  it('is not over before it has begun', () => {
+    const s = make();
+    expect(s.roundComplete()).toBe(false);
+    expect(s.roundNumber()).toBe(1);
+  });
+
+  it('is over after the round length of rooms', () => {
+    const s = make();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
+    finishRoom(s);
+    expect(s.roundComplete()).toBe(true);
+  });
+
+  it('counts the room in play once it is finished with', () => {
+    const s = make();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
+    expect(s.roundComplete()).toBe(false);
+    finishRoom(s);
+    expect(s.roundComplete()).toBe(true);
+  });
+
+  it('refuses another room until the next round is started', () => {
+    const s = make();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
+    finishRoom(s);
+    expect(() => s.next()).toThrow(/round/i);
+  });
+
+  it('hands back the rooms of the round just played', () => {
+    const s = make();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
+    finishRoom(s);
+    const round = s.roundResults();
+    expect(round).toHaveLength(ROUND_LENGTH);
+    expect(round.every((r) => r.solved === false)).toBe(true);
+  });
+
+  it('starts the next round clean', () => {
+    const s = make();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
+    finishRoom(s);
+    s.startRound();
+    expect(s.roundComplete()).toBe(false);
+    expect(s.roundNumber()).toBe(2);
+    expect(s.roundResults()).toEqual([]);
+    expect(s.state()).toBe('guessing');
+    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+  });
+
+  it('will not start another round in the middle of one', () => {
+    const s = make();
+    expect(() => s.startRound()).toThrow(/round/i);
+  });
+
+  it('keeps every room played across rounds available to look back at', () => {
+    const s = make();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(s); s.next(); }
+    finishRoom(s);
+    s.startRound();
+    expect(s.played()).toHaveLength(ROUND_LENGTH);
+  });
+
+  it('records what each room cost', () => {
+    const s = make();
+    s.guess(s.current().name);
+    const solvedName = s.played().length === 0 ? s.current().name : '';
+    s.next();
+    expect(s.played()[0]).toMatchObject({ solved: true, guessesUsed: 1 });
+    void solvedName;
   });
 });

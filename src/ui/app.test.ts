@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mountApp, ALIAS_ISSUE_BASE, plural } from './app';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS, MAX_TILE_SIZE, VIEWPORT } from '../render/renderer';
-import { MAX_GUESSES } from '../game/session';
+import { MAX_GUESSES, ROUND_LENGTH } from '../game/session';
 import type { Renderer } from '../render/renderer';
 import type { App } from './app';
 
@@ -306,6 +306,16 @@ describe('fitting the room on screen', () => {
 });
 
 describe('par', () => {
+  it('sits with the guesses left, above the answer box', () => {
+    only('Landing Site');
+    const right = q<HTMLDivElement>('[data-role=right]');
+    const par = q<HTMLElement>('[data-role=par]');
+    const input = q<HTMLInputElement>('input[name=answer]');
+    expect(right.contains(par)).toBe(true);
+    expect(par.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(q('[data-role=guesses]').parentElement).toBe(par.parentElement);
+  });
+
   /** A label telling the player how hard this room ought to be. Nothing else uses it. */
   it('shows the par for the room on screen', () => {
     only('Landing Site');
@@ -585,5 +595,80 @@ describe('the map / room toggle', () => {
     for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
     click('button[data-action=next]');
     expect(q<HTMLButtonElement>('button[data-action=toggle-view]').hidden).toBe(true);
+  });
+});
+
+describe('rounds', () => {
+  const finishRoom = () => {
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+  };
+  const playRound = () => {
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { finishRoom(); click('button[data-action=next]'); }
+    finishRoom();
+  };
+
+  it('says nothing about rounds until one is over', () => {
+    mount();
+    expect(q<HTMLElement>('[data-role=summary]').hidden).toBe(true);
+  });
+
+  it('shows the summary once the round is done', () => {
+    mount();
+    playRound();
+    expect(q<HTMLElement>('[data-role=summary]').hidden).toBe(false);
+  });
+
+  it('hides Next and offers another round instead', () => {
+    mount();
+    playRound();
+    expect(q<HTMLButtonElement>('button[data-action=next]').hidden).toBe(true);
+    expect(q<HTMLButtonElement>('button[data-action=new-round]').hidden).toBe(false);
+  });
+
+  it('starts a fresh round when asked', () => {
+    const app = mount();
+    playRound();
+    click('button[data-action=new-round]');
+    expect(app.session.roundNumber()).toBe(2);
+    expect(q<HTMLElement>('[data-role=summary]').hidden).toBe(true);
+    expect(app.session.state()).toBe('guessing');
+  });
+
+  it('draws a bar for every guess and one for a loss', () => {
+    mount();
+    playRound();
+    const bars = root.querySelectorAll('[data-role=bar]');
+    expect(bars).toHaveLength(MAX_GUESSES + 1);
+    expect(bars[bars.length - 1]?.getAttribute('data-label')).toBe('X');
+  });
+
+  it('shows this round and all time on the same bar', () => {
+    mount();
+    playRound();
+    const bar = q('[data-role=bar]');
+    expect(bar.querySelector('[data-role=bar-round]')).toBeTruthy();
+    expect(bar.querySelector('[data-role=bar-all]')).toBeTruthy();
+  });
+
+  it('reports the win rate for the round against all time', () => {
+    mount();
+    playRound();
+    const text = q('[data-role=win-rate]').textContent ?? '';
+    expect(text).toMatch(/%/);
+    expect(q('[data-role=win-diff]')).toBeTruthy();
+  });
+
+  it('lists the rooms going worst', () => {
+    mount();
+    playRound();
+    const struggles = q('[data-role=struggles]');
+    expect(struggles.querySelectorAll('li').length).toBeGreaterThan(0);
+    expect(struggles.querySelectorAll('li').length).toBeLessThanOrEqual(5);
+  });
+
+  it('counts every room of the round as lost when all were skipped', () => {
+    mount();
+    playRound();
+    expect(q('[data-role=win-rate]').textContent).toContain('0%');
   });
 });

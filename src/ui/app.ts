@@ -1,10 +1,14 @@
-import { createSession } from '../game/session';
+import { createSession, MAX_GUESSES } from '../game/session';
 import type { Hint, Session } from '../game/session';
 import { buildNameIndex, autocomplete } from '../game/matching';
 import { loadRooms, guessableRooms } from '../rooms';
 import { pixelRenderer } from '../render/pixelRenderer';
 import { fitTileSize, VIEWPORT } from '../render/renderer';
 import { allPars, PAR_OVERRIDES } from '../game/par';
+import {
+  emptyStats, recordRoom, winRate, guessHistogram, strugglingRooms, loadStats, saveStats,
+} from '../game/stats';
+import type { Stats } from '../game/stats';
 import type { Renderer } from '../render/renderer';
 import type { RenderSettings, Room } from '../types';
 import type { PlayedRoom } from '../game/session';
@@ -76,7 +80,6 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
         <h1>SM Map Rando Trainer</h1>
         <p>Identify the room from its Map Rando map tiles.</p>
         <p data-role="score"></p>
-        <p data-role="par"></p>
         <p>
           <button data-action="toggle-view" hidden>Show the map</button>
           <span data-role="viewing"></span>
@@ -85,7 +88,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
           ><canvas data-role="map"></canvas></div>
       </div>
       <div data-role="right" style="flex:1 1 340px;position:sticky;top:16px">
-        <p data-role="guesses"></p>
+        <p><span data-role="guesses"></span> <span data-role="par"></span></p>
         <p>
           <label>Which room is this?
             <input name="answer" type="text" autocomplete="off" size="32">
@@ -95,11 +98,13 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
           <button data-action="guess">Answer</button>
           <button data-action="skip">Skip (costs a guess, gives a hint)</button>
           <button data-action="next" hidden>Next room</button>
+          <button data-action="new-round" hidden>Start another round</button>
         </p>
         <ul data-role="suggestions"></ul>
         <p data-role="verdict"></p>
         <dl data-role="hints"></dl>
         <div data-role="reveal"></div>
+        <section data-role="summary" hidden></section>
       </div>
     </div>
   `;
@@ -118,13 +123,25 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   const hintList = el<HTMLDListElement>('[data-role=hints]');
   const reveal = el<HTMLDivElement>('[data-role=reveal]');
   const score = el<HTMLParagraphElement>('[data-role=score]');
-  const guesses = el<HTMLParagraphElement>('[data-role=guesses]');
   const guessButton = el<HTMLButtonElement>('button[data-action=guess]');
   const skipButton = el<HTMLButtonElement>('button[data-action=skip]');
   const nextButton = el<HTMLButtonElement>('button[data-action=next]');
   const toggleButton = el<HTMLButtonElement>('button[data-action=toggle-view]');
   const viewing = el<HTMLSpanElement>('[data-role=viewing]');
-  const par = el<HTMLParagraphElement>('[data-role=par]');
+  const par = el<HTMLSpanElement>('[data-role=par]');
+  const guessesLabel = el<HTMLSpanElement>('[data-role=guesses]');
+  const summary = el<HTMLElement>('[data-role=summary]');
+  const newRoundButton = el<HTMLButtonElement>('button[data-action=new-round]');
+
+  const storage = (() => {
+    try { return window.localStorage; } catch { return null; }
+  })();
+  /** Everything ever played, kept between visits. A convenience, never load-bearing. */
+  let allTime: Stats = loadStats(storage);
+  /** Just this round, for showing beside it. */
+  let thisRound: Stats = emptyStats();
+  /** Guards against filing the same room twice, since redraws are frequent. */
+  let recorded = false;
 
   /**
    * How many guesses each room ought to take, worked out once. It is shown to the player as
@@ -208,15 +225,77 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     viewing.textContent = back
       ? `Looking back at ${viewedRoom().name} — right arrow to return`
       : '';
-    guesses.textContent = !back && !over ? `${plural(session.guessesLeft(), 'guess')} left` : '';
+    guessesLabel.textContent = !back && !over ? `${plural(session.guessesLeft(), 'guess')} left` : '';
 
     // Looking back is read-only: that room is already finished with.
+    const roundOver = session.roundComplete();
     input.hidden = back;
     input.disabled = over;
     guessButton.hidden = back || over;
     skipButton.hidden = back || over;
-    nextButton.hidden = back || !over;
+    nextButton.hidden = back || !over || roundOver;
+    newRoundButton.hidden = back || !roundOver;
     if (back) suggestions.innerHTML = '';
+  }
+
+  /** Files the finished room into the running tallies, once. */
+  function recordOutcome(): void {
+    if (recorded || session.state() === 'guessing') return;
+    recorded = true;
+    const outcome = {
+      roomId: session.current().id,
+      roomName: session.current().name,
+      solved: session.state() === 'solved',
+      guessesUsed: MAX_GUESSES - session.guessesLeft(),
+    };
+    allTime = recordRoom(allTime, outcome);
+    thisRound = recordRoom(thisRound, outcome);
+    saveStats(storage, allTime);
+  }
+
+  function bar(label: string, roundShare: number, allShare: number, count: number): string {
+    return `<li data-role="bar" data-label="${label}"
+      style="display:flex;align-items:center;gap:8px;margin:2px 0">
+      <span style="width:1.2em;text-align:right">${label}</span>
+      <span style="flex:1;display:block">
+        <span data-role="bar-round" title="this round"
+          style="display:block;height:10px;background:#7cf;width:${roundShare}%;min-width:${
+  count > 0 ? 2 : 0}px"></span>
+        <span data-role="bar-all" title="all time"
+          style="display:block;height:6px;background:#555;width:${allShare}%"></span>
+      </span>
+      <span style="width:3em">${count}</span>
+    </li>`;
+  }
+
+  /**
+   * How the round went, next to how things have gone overall. Deliberately plain: the page
+   * has not been styled yet, and this only has to be readable.
+   */
+  function drawSummary(): void {
+    summary.hidden = !session.roundComplete();
+    if (summary.hidden) return;
+
+    const roundBars = guessHistogram(thisRound);
+    const allBars = guessHistogram(allTime);
+    const roundRate = winRate(thisRound);
+    const allRate = winRate(allTime);
+    const diff = roundRate - allRate;
+    const struggles = strugglingRooms(allTime, 5);
+
+    summary.innerHTML = `
+      <h2>Round ${session.roundNumber()} done</h2>
+      <p data-role="win-rate">Solved ${roundRate}% this round
+        <span data-role="win-diff">(${diff >= 0 ? '+' : ''}${diff} against ${allRate}% all time)</span>
+      </p>
+      <p>Solved on guess — <span style="color:#7cf">this round</span> over all time</p>
+      <ul style="list-style:none;padding:0;max-width:22em">
+        ${roundBars.map((b, i) => bar(b.label, b.share, allBars[i]?.share ?? 0, b.count)).join('')}
+      </ul>
+      ${struggles.length ? `<p>Rooms going worst</p>
+        <ol data-role="struggles">${struggles.map((r) => `<li>${r.name}
+          — solved ${r.solved} of ${r.attempts}, ${r.averageGuesses.toFixed(1)} guesses on
+          average</li>`).join('')}</ol>` : '<ol data-role="struggles"></ol>'}`;
   }
 
 
@@ -266,8 +345,10 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   }
 
   function redraw(): void {
+    recordOutcome();
     drawStage();
     drawStatus();
+    drawSummary();
     drawHints();
     drawSuggestions();
     drawReveal();
@@ -280,7 +361,9 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   }
 
   function advance(): void {
+    if (session.roundComplete()) return;
     session.next();
+    recorded = false;
     input.value = '';
     lookingBack = 0;
     showMap = false;
@@ -338,6 +421,18 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     redraw();
   });
   nextButton.addEventListener('click', advance);
+  newRoundButton.addEventListener('click', () => {
+    session.startRound();
+    thisRound = emptyStats();
+    recorded = false;
+    input.value = '';
+    lookingBack = 0;
+    showMap = false;
+    standDown();
+    drawRoom();
+    redraw();
+    input.focus();
+  });
   input.addEventListener('input', () => {
     standDown();
     drawSuggestions();

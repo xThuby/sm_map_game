@@ -12,6 +12,9 @@ import type { RenderSettings, Room } from '../types';
  */
 export const MAX_GUESSES = 6;
 
+/** How many rooms make a round, after which the player is shown how they did. */
+export const ROUND_LENGTH = 6;
+
 export type HintKind = 'area' | 'enemies' | 'neighbour' | 'diagram' | 'name';
 
 /** Least to most generous. The name itself is the last thing worth giving away. */
@@ -140,6 +143,13 @@ export interface Session {
   current(): Room;
   /** Rooms already finished with, oldest first, for looking back over. */
   played(): PlayedRoom[];
+  /** Which round is being played, counting from one. */
+  roundNumber(): number;
+  /** Rooms finished in this round, the one in play included once it is over. */
+  roundResults(): PlayedRoom[];
+  roundComplete(): boolean;
+  /** Begins the next round. Only valid once this one is over. */
+  startRound(): void;
   state(): RoomState;
   guessesLeft(): number;
   hints(): Hint[];
@@ -168,6 +178,26 @@ export function createSession(options: SessionOptions): Session {
   let totalSolved = 0;
   let totalGuesses = 0;
   const finished: PlayedRoom[] = [];
+  let roundStart = 0;
+  let round = 1;
+
+  /** The room in play counts towards the round as soon as it is finished with. */
+  const roundResults = (): PlayedRoom[] => {
+    const done = finished.slice(roundStart);
+    return state() === 'guessing'
+      ? done
+      : [...done, { room, solved, guessesUsed: spent }];
+  };
+  const roundComplete = () => roundResults().length >= ROUND_LENGTH;
+
+  const draw = (): void => {
+    finished.push({ room, solved, guessesUsed: spent });
+    room = bag.take();
+    spent = 0;
+    solved = false;
+    grade = null;
+    asked += 1;
+  };
 
   const state = (): RoomState => {
     if (solved) return 'solved';
@@ -235,15 +265,22 @@ export function createSession(options: SessionOptions): Session {
     },
 
     played: () => [...finished],
+    roundNumber: () => round,
+    roundResults,
+    roundComplete,
 
     next() {
       if (state() === 'guessing') throw new Error('This room is still in play');
-      finished.push({ room, solved, guessesUsed: spent });
-      room = bag.take();
-      spent = 0;
-      solved = false;
-      grade = null;
-      asked += 1;
+      if (roundComplete()) throw new Error('This round is over; start another');
+      draw();
+    },
+
+    startRound() {
+      if (!roundComplete()) throw new Error('This round is not over yet');
+      draw();
+      // draw() has just filed the last room of the old round, so the new one starts here.
+      roundStart = finished.length;
+      round += 1;
     },
 
     score: () => ({ asked, solved: totalSolved, guessesUsed: totalGuesses }),

@@ -6,6 +6,12 @@ contains — heat, liquid, items, doors, one-way exits.
 
 Live: https://xthuby.github.io/sm_map_game/
 
+A round is six rooms; after each one you get a summary of how it went against your running
+stats, which are kept in the browser.
+
+There is a par review page at `/par.html` — how many guesses each room ought to take, with the
+reasoning, for checking those numbers look sensible. It is not linked from the game.
+
 ## Development
 
 ```
