@@ -2,6 +2,7 @@ import type {
   Area, Direction, Door, DoorSubtype, Interior, Liquid, OneWay, RawEdge, Room, Special, Tile,
   Utility,
 } from '../src/types';
+import { AREAS } from '../src/types';
 
 /** A tile as stored in MapRandomizer's rust/data/map_tiles.json. */
 export interface RawMapTile {
@@ -66,7 +67,6 @@ export interface RawGeoRoom {
  */
 const KNOWN_NAME_DIFFERENCES = new Map<number, string>([[321, 'Toilet']]);
 
-const AREAS: Area[] = ['Crateria', 'Brinstar', 'Norfair', 'Wrecked Ship', 'Maridia', 'Tourian'];
 
 const EDGES = new Set<string>([
   'empty', 'wall', 'door', 'passage', 'sand', 'elevatorEntrance',

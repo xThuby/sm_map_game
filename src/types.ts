@@ -1,6 +1,11 @@
 /** The six map areas, in ROM index order (0-5). */
 export type Area = 'Crateria' | 'Brinstar' | 'Norfair' | 'Wrecked Ship' | 'Maridia' | 'Tourian';
 
+/** The areas in the order every upstream file indexes them by. */
+export const AREAS: Area[] = [
+  'Crateria', 'Brinstar', 'Norfair', 'Wrecked Ship', 'Maridia', 'Tourian',
+];
+
 /**
  * An edge as stored upstream. The `qol*` variants are Map Rando's corrections to vanilla map
  * errors; which of the two a player sees depends on their `walls` setting, so the raw value
