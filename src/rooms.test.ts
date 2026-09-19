@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { loadRooms, roomById, roomByName, roomsInArea, equivalenceGroup } from './rooms';
+import {
+  loadRooms, roomById, roomByName, roomsInArea, equivalenceGroup, guessableRooms, isGuessable,
+} from './rooms';
 import { SHAPE_ONLY, FULLY_VISIBLE } from './signature';
 
 const rooms = loadRooms();
@@ -85,5 +87,41 @@ describe('equivalenceGroup', () => {
       expect(equivalenceGroup(member, SHAPE_ONLY).map((r) => r.id).sort())
         .toEqual(group.map((r) => r.id).sort());
     }
+  });
+});
+
+describe('guessableRooms', () => {
+  /**
+   * A station icon fills its whole tile including the border, and render_tile skips the
+   * tile's edges for it. A room that is nothing but icons therefore draws no wall and no
+   * door — there is nothing on screen to identify it by, and every save room looks the same.
+   */
+  it('drops the 33 rooms that are nothing but a station icon', () => {
+    expect(guessableRooms()).toHaveLength(253 - 33);
+  });
+
+  it('drops every save room', () => {
+    expect(guessableRooms().some((r) => r.utilities.includes('save'))).toBe(false);
+  });
+
+  it('drops map and refill rooms for the same reason', () => {
+    const names = guessableRooms().map((r) => r.name);
+    expect(names).not.toContain('Crateria Map Room');
+    expect(names).not.toContain('Golden Torizo Energy Recharge');
+  });
+
+  it('keeps a room that merely contains a station alongside real geometry', () => {
+    // Landing Site has the Ship on one tile but plenty of drawn wall elsewhere.
+    expect(guessableRooms().map((r) => r.name)).toContain('Landing Site');
+  });
+
+  it('keeps every room that draws at least one edge', () => {
+    for (const room of guessableRooms()) {
+      expect(isGuessable(room), room.name).toBe(true);
+    }
+  });
+
+  it('leaves them answerable even though they are never asked', () => {
+    expect(roomByName('Crateria Save Room')).toBeDefined();
   });
 });

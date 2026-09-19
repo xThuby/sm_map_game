@@ -52,11 +52,16 @@ export const AREAS_WITH_HEATED_PALETTE: Area[] = ['Crateria', 'Norfair', 'Touria
  * case — Map Rando reassigns rooms to areas per seed, so vanilla area colour would teach a
  * signal that is not there. Heat reads as brightness rather than hue, as it does in every
  * measured area palette.
+ *
+ * Sampled from a screenshot of a real seed, so these are the game's own values rather than
+ * an approximation of them. The two greys carry the liquids as well: lava fills a heated
+ * room with index 1, and acid dithers the two against each other, which is why the pair has
+ * to be exactly this far apart.
  */
 export const NEUTRAL_PALETTE: Record<number, Rgb> = {
   0: BLACK,
-  1: [123, 123, 123],
-  2: [165, 165, 165],
+  1: [0x53, 0x56, 0x55],
+  2: [0x8b, 0x8b, 0x8b],
   3: WHITE,
   4: BLACK,
   5: BLACK,

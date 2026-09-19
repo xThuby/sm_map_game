@@ -52,6 +52,29 @@ function groupsFor(settings: RenderSettings): Map<string, Room[]> {
 }
 
 /**
+ * Interiors whose icon fills the whole tile, border included. render_tile skips a tile's
+ * edges when it carries one, so these draw no wall and no door.
+ */
+const ICON_INTERIORS = new Set([
+  'saveStation', 'mapStation', 'energyRefill', 'ammoRefill', 'doubleRefill', 'ship',
+]);
+
+/**
+ * Whether there is anything on screen to identify this room by.
+ *
+ * A room made only of station icons draws no geometry at all, so every save room looks
+ * exactly like every other one. Asking about them is unanswerable rather than hard.
+ */
+export function isGuessable(room: Room): boolean {
+  return room.tiles.some((t) => !ICON_INTERIORS.has(t.interior));
+}
+
+/** The rooms worth asking about. Every room stays answerable; these are the ones shown. */
+export function guessableRooms(): Room[] {
+  return rooms.filter(isGuessable);
+}
+
+/**
  * Every room that looks identical to this one at these settings, including itself.
  *
  * This is what a name answer is graded against: when two rooms paint the same pixels there

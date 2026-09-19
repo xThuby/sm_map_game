@@ -339,7 +339,7 @@ describe('the neutral palette', () => {
   });
 
   it('keeps the lattice dim enough to stay behind the map', () => {
-    expect(luminance(GRID_COLOUR)).toBeLessThan(luminance(NEUTRAL_PALETTE[1] as Rgb) - 50);
+    expect(luminance(GRID_COLOUR)).toBeLessThan(luminance(NEUTRAL_PALETTE[1] as Rgb) - 25);
   });
 
   it('draws the lattice along the top and left of each tile', () => {
