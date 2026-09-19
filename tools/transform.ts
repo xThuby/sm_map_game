@@ -30,6 +30,8 @@ export type VanillaDoor = [[number, number], [number, number], boolean];
 export interface VanillaMap {
   rooms: [number, number][];
   doors: VanillaDoor[];
+  /** Which area each room belongs to, in the same order as `rooms`. */
+  area: number[];
 }
 
 /** The per-room facts pulled out of sm-json-data. */

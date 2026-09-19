@@ -389,3 +389,85 @@ describe('corpus: hint data', () => {
     expect(rooms.filter((r) => r.diagram === null)).toHaveLength(0);
   });
 });
+
+/**
+ * data/raw/maps.json holds real Map Rando layouts, taken from a published pool rather than
+ * generated here — Map Rando's own generator is a trained model, not something to reproduce.
+ * These anchor what a vendored layout is allowed to look like, since nobody is going to read
+ * 25 maps by eye.
+ */
+describe('corpus: vendored map layouts', () => {
+  const layouts = JSON.parse(
+    readFileSync(resolve(repoRoot, 'data/raw/maps.json'), 'utf8'),
+  ) as {
+    source: { pool: string; member: string; maps: number };
+    maps: { rooms: [number, number, number, number][];
+      connections: [number, number, number, number, boolean][] }[];
+  };
+  const knownIds = new Set(rooms.map((r) => r.id));
+  const doorsOf = new Map(rawGeo.map((g) => [g.room_id, g.doors]));
+
+  it('vendors 25 layouts, and says which pool they came from', () => {
+    expect(layouts.maps).toHaveLength(25);
+    expect(layouts.source.maps).toBe(25);
+    expect(layouts.source.pool).toContain('map-rando-artifacts');
+  });
+
+  it('places all 253 rooms in every layout, each exactly once', () => {
+    for (const [i, m] of layouts.maps.entries()) {
+      expect(m.rooms, `map ${i}`).toHaveLength(253);
+      expect(new Set(m.rooms.map(([id]) => id)).size, `map ${i}`).toBe(253);
+      for (const [id] of m.rooms) expect(knownIds.has(id), `map ${i} room ${id}`).toBe(true);
+    }
+  });
+
+  it('gives every room one of the six areas, and uses all six', () => {
+    for (const [i, m] of layouts.maps.entries()) {
+      const tally = new Map<number, number>();
+      for (const [, , , area] of m.rooms) tally.set(area, (tally.get(area) ?? 0) + 1);
+      expect([...tally.keys()].sort(), `map ${i}`).toEqual([0, 1, 2, 3, 4, 5]);
+      expect([...tally.values()].reduce((a, b) => a + b), `map ${i}`).toBe(253);
+    }
+  });
+
+  it('connects rooms 291 ways, naming doors that exist', () => {
+    for (const [i, m] of layouts.maps.entries()) {
+      expect(m.connections, `map ${i}`).toHaveLength(291);
+      for (const [fromRoom, fromDoor, toRoom, toDoor] of m.connections) {
+        expect(doorsOf.get(fromRoom)?.[fromDoor], `map ${i} ${fromRoom} door ${fromDoor}`)
+          .toBeDefined();
+        expect(doorsOf.get(toRoom)?.[toDoor], `map ${i} ${toRoom} door ${toDoor}`).toBeDefined();
+      }
+    }
+  });
+
+  /** Doors only ever meet head-on, which is what makes placement arithmetic checkable. */
+  it('only ever joins doors that face each other', () => {
+    const opposite: Record<string, string> = {
+      left: 'right', right: 'left', up: 'down', down: 'up',
+    };
+    for (const [i, m] of layouts.maps.entries()) {
+      for (const [fromRoom, fromDoor, toRoom, toDoor] of m.connections) {
+        const a = doorsOf.get(fromRoom)![fromDoor]!;
+        const b = doorsOf.get(toRoom)![toDoor]!;
+        expect(opposite[a.direction], `map ${i} ${fromRoom}:${fromDoor}`).toBe(b.direction);
+      }
+    }
+  });
+
+  /** They are generated, not vanilla: the area assignment is shuffled per seed. */
+  it('assigns areas differently from the vanilla map', () => {
+    const vanillaTally = [33, 54, 76, 16, 55, 19];
+    const same = layouts.maps.filter((m) => {
+      const tally = [0, 0, 0, 0, 0, 0];
+      for (const [, , , area] of m.rooms) tally[area] = (tally[area] as number) + 1;
+      return tally.every((n, a) => n === vanillaTally[a]);
+    });
+    expect(same).toHaveLength(0);
+  });
+
+  it('lays every layout out differently', () => {
+    const shapes = layouts.maps.map((m) => JSON.stringify(m.rooms));
+    expect(new Set(shapes).size).toBe(layouts.maps.length);
+  });
+});

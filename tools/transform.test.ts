@@ -249,7 +249,7 @@ describe('deriveNeighbours', () => {
       { direction: 'right', x: 0, y: 0, subtype: 'normal', exit_ptr: 100, entrance_ptr: 200 }] });
     const b = rawGeo({ room_id: 2, name: 'B', doors: [
       { direction: 'left', x: 0, y: 0, subtype: 'normal', exit_ptr: 200, entrance_ptr: 100 }] });
-    const map = { rooms: [[0, 0], [0, 0]] as [number, number][],
+    const map = { rooms: [[0, 0], [0, 0]] as [number, number][], area: [0, 0],
                   doors: [[[100, 200], [200, 100], true]] as VanillaDoor[] };
     expect(deriveNeighbours([a, b], map)).toEqual({ 1: [2], 2: [1] });
   });
@@ -258,7 +258,7 @@ describe('deriveNeighbours', () => {
     const a = rawGeo({ room_id: 1, name: 'A', doors: [
       { direction: 'left', x: 0, y: 0, subtype: 'normal', exit_ptr: 100, entrance_ptr: 200 },
       { direction: 'right', x: 1, y: 0, subtype: 'normal', exit_ptr: 200, entrance_ptr: 100 }] });
-    const map = { rooms: [[0, 0]] as [number, number][],
+    const map = { rooms: [[0, 0]] as [number, number][], area: [0],
                   doors: [[[100, 200], [200, 100], true]] as VanillaDoor[] };
     expect(deriveNeighbours([a], map)).toEqual({ 1: [] });
   });
