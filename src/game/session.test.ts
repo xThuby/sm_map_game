@@ -383,6 +383,36 @@ describe('buying hints', () => {
     expect(s.nameMask()).toBe('Volcano Room');
   });
 
+  /**
+    * A room is lost by giving up or by guessing wrong, never by buying. So a hint priced at
+    * exactly what is left is not for sale: taking it would empty the room on the spot.
+    */
+  it('will not sell a hint that would take the last of the points', () => {
+    const s = only('Volcano Room');
+    const wrong = wrongRun('Volcano Room');
+    for (let i = 0; i < 5; i += 1) s.guess(wrong());
+    expect(s.points()).toBe(50);
+    s.buyHint('name');
+    expect(s.points()).toBe(HINT_COSTS.name);
+
+    expect(s.offers().find((o) => o.kind === 'name')?.affordable).toBe(false);
+    expect(() => s.buyHint('name')).toThrow(/points/i);
+    expect(s.points()).toBe(HINT_COSTS.name);
+    expect(s.state()).toBe('guessing');
+  });
+
+  it('still sells anything that leaves something behind', () => {
+    const s = only('Volcano Room');
+    const wrong = wrongRun('Volcano Room');
+    for (let i = 0; i < 5; i += 1) s.guess(wrong());
+    s.buyHint('neighbour');
+    expect(s.points()).toBe(35);
+    expect(s.offers().find((o) => o.kind === 'name')?.affordable).toBe(true);
+    s.buyHint('name');
+    expect(s.points()).toBe(10);
+    expect(s.state()).toBe('guessing');
+  });
+
   it('counts the name as bought only once every letter is paid for', () => {
     const s = only('Volcano Room');
     s.buyHint('name');

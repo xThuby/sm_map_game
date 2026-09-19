@@ -11,7 +11,11 @@ sale from the start rather than handed out on a schedule — the original map ar
 enemy list 5, the connecting rooms 15, the room graphics 20, and the name 25 for one random
 letter, twice. The room's name is masked from the start, so its shape is free. The lot comes
 to 95: every hint is always within reach, and naming a room after taking them all still pays
-5. Buying empties a room but never ends one — only a wrong answer can do that.
+5.
+
+A room is lost by giving up or by guessing wrong, never by buying. A hint priced at exactly
+what is left would empty the room, so it is not for sale — its button is shown, disabled, so
+you can see what you can no longer reach.
 
 A wrong answer costs 10, and throws in the area hint the first time and the enemy list the
 second — 10 for a hint that costs 5 to ask for either way, because it is a consolation for

@@ -543,8 +543,11 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
    * bound to buttons that will not survive the next redraw.
    */
   root.addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest('button[data-action=buy]');
-    if (!button || lookingBack > 0 || session.state() !== 'guessing') return;
+    const button = (event.target as HTMLElement)
+      .closest<HTMLButtonElement>('button[data-action=buy]');
+    // A disabled button dispatches no click of its own, but it can still be reached by a
+    // stray programmatic one, and buying what is turned off would throw.
+    if (!button || button.disabled || lookingBack > 0 || session.state() !== 'guessing') return;
     const kind = button.getAttribute('data-hint') as HintKind;
     session.buyHint(kind);
     // Paying for the picture is asking to see it.

@@ -1088,6 +1088,19 @@ describe('buying hints', () => {
     expect(q('[data-role=points]').textContent).toMatch(/\b0 points\b/);
   });
 
+  /** A room is never lost by buying, so what would empty it is shown but not for sale. */
+  it('turns off a hint that would take the last of the points', () => {
+    const app = only('Volcano Room');
+    for (let i = 0; i < 5; i += 1) wrongGuess(app);
+    expect(q('[data-role=points]').textContent).toContain('50 points');
+    buy('name');
+    expect(q('[data-role=points]').textContent).toContain(`${HINT_COSTS.name} points`);
+    expect(buyButton('name')?.disabled).toBe(true);
+    buyButton('name')?.click();
+    expect(app.session.state()).toBe('guessing');
+    expect(q('[data-role=points]').textContent).toContain(`${HINT_COSTS.name} points`);
+  });
+
   it('has nothing left to sell once the room is over', () => {
     only('Volcano Room');
     giveUp();

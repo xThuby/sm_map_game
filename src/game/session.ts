@@ -322,7 +322,8 @@ export function createSession(options: SessionOptions): Session {
         label: HINT_LABELS[kind],
         cost: HINT_COSTS[kind],
         bought: spent,
-        affordable: !spent && HINT_COSTS[kind] <= points(),
+        // Strictly less: a hint priced at exactly what is left would empty the room.
+        affordable: !spent && HINT_COSTS[kind] < points(),
       };
     }),
 
@@ -331,7 +332,9 @@ export function createSession(options: SessionOptions): Session {
       if (timesBought(kind) >= limitFor(kind)) {
         throw new Error(`The ${kind} hint has already been bought`);
       }
-      if (HINT_COSTS[kind] > points()) {
+      // A room is lost by giving up or by guessing wrong, never by buying. A hint that
+      // would take the last of the points is therefore not for sale at any price.
+      if (HINT_COSTS[kind] >= points()) {
         throw new Error(`Not enough points left for the ${kind} hint`);
       }
       spentPoints += HINT_COSTS[kind];
