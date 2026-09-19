@@ -45,13 +45,32 @@ export const PALETTE: Record<Area, Record<number, Rgb>> = {
 export const AREAS_WITH_HEATED_PALETTE: Area[] = ['Crateria', 'Norfair', 'Tourian'];
 
 /**
- * A neutral palette for when the area should not be given away. Keeps the wall/interior
- * contrast of the real thing without naming the region.
+ * A neutral palette for when the area should not be given away.
+ *
+ * It has to keep the real palettes' arrangement to look right: a bright fill for the room's
+ * body, white walls, black backdrop. Every measured area colour sits around half luminance,
+ * so the neutral fill matches that — a dark fill sinks into the backdrop and takes the liquid
+ * dithers with it, since those alternate the fill with black.
+ *
+ * Heat is the one place this departs from a pure grey. It is the only hue on screen, so a
+ * heated room is unmistakable, which is the point of dropping the area colour.
  */
 export const NEUTRAL_PALETTE: Record<number, Rgb> = {
-  0: BLACK, 1: [38, 42, 56], 2: [92, 74, 60], 3: WHITE, 4: BLACK, 5: BLACK,
-  12: BLACK, 13: WHITE, 15: GRAY_DOOR,
+  0: BLACK,
+  1: [126, 132, 148],
+  2: [232, 128, 78],
+  3: WHITE,
+  4: BLACK,
+  5: BLACK,
+  12: BLACK,
+  13: WHITE,
+  15: GRAY_DOOR,
 };
+
+/** Rough perceived brightness, 0-255. */
+export function luminance([r, g, b]: Rgb): number {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
 
 export function paletteFor(area: Area, areaColour: boolean): Record<number, Rgb> {
   return areaColour ? (PALETTE[area] as Record<number, Rgb>) : NEUTRAL_PALETTE;

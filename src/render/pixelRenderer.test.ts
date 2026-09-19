@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { renderTileBitmap, renderRoomBitmap, PALETTE_INDICES } from './pixelRenderer';
 import { grayDoorSide } from './grayDoors';
 import { TOURNAMENT_SETTINGS } from './renderer';
-import { PALETTE, NEUTRAL_PALETTE, AREAS_WITH_HEATED_PALETTE, paletteFor } from './palette';
+import { PALETTE, NEUTRAL_PALETTE, AREAS_WITH_HEATED_PALETTE, paletteFor, luminance } from './palette';
+import type { Rgb } from './palette';
 import { FULLY_VISIBLE, SHAPE_ONLY } from '../signature';
 import { loadRooms } from '../rooms';
 import type { Interior, RenderSettings, Room, Tile } from '../types';
@@ -298,5 +299,38 @@ describe('tournament settings', () => {
       heat: 'visible', water: 'visible', lava: 'visible', acid: 'visible',
       walls: 'enhanced', items: 'visible',
     });
+  });
+});
+
+describe('the neutral palette', () => {
+  /**
+   * The room's body has to read against the backdrop. A dark fill also destroys the liquid
+   * dithers, which alternate the fill colour with black.
+   */
+  it('fills rooms brightly enough to separate from the backdrop', () => {
+    const fill = luminance(NEUTRAL_PALETTE[1] as Rgb);
+    expect(fill).toBeGreaterThan(luminance(NEUTRAL_PALETTE[0] as Rgb) + 80);
+    expect(fill).toBeGreaterThan(luminance(NEUTRAL_PALETTE[5] as Rgb) + 80);
+  });
+
+  it('keeps walls brighter than the fill, as the real palettes do', () => {
+    expect(luminance(NEUTRAL_PALETTE[3] as Rgb))
+      .toBeGreaterThan(luminance(NEUTRAL_PALETTE[1] as Rgb));
+    expect(luminance(PALETTE.Norfair[3] as Rgb))
+      .toBeGreaterThan(luminance(PALETTE.Norfair[1] as Rgb));
+  });
+
+  it('sits in the same brightness range as the real area colours', () => {
+    const areas = Object.values(PALETTE).map((p) => luminance(p[1] as Rgb));
+    const fill = luminance(NEUTRAL_PALETTE[1] as Rgb);
+    expect(fill).toBeGreaterThan(Math.min(...areas) - 20);
+    expect(fill).toBeLessThan(Math.max(...areas) + 40);
+  });
+
+  it('makes a heated room clearly different from a cold one', () => {
+    const cold = NEUTRAL_PALETTE[1] as Rgb;
+    const hot = NEUTRAL_PALETTE[2] as Rgb;
+    const distance = Math.hypot(hot[0] - cold[0], hot[1] - cold[1], hot[2] - cold[2]);
+    expect(distance).toBeGreaterThan(100);
   });
 });

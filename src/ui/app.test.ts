@@ -247,6 +247,19 @@ describe('moving on', () => {
   });
 });
 
+describe('the stage', () => {
+  /**
+   * Rooms are drawn with white walls on an unpainted backdrop, so on a white page the
+   * outlines disappear entirely. The black behind them is what makes the room readable.
+   */
+  it('puts black behind the room, with room to breathe around it', () => {
+    mount();
+    const style = q<HTMLDivElement>('[data-role=stage]').style;
+    expect(style.background).toMatch(/#000|black|rgb\(0, 0, 0\)/);
+    expect(parseInt(style.padding, 10)).toBeGreaterThan(0);
+  });
+});
+
 describe('zoom', () => {
   const stage = () => q<HTMLDivElement>('[data-role=stage]');
 
