@@ -8,10 +8,11 @@ Live: https://xthuby.github.io/sm_map_game/
 
 Each room starts at 100 points, and everything comes out of that one purse. Hints are on
 sale from the start rather than handed out on a schedule — the original map area costs 5, the
-enemy list 5, the connecting rooms 15, the room graphics 20, and the name 25 for one random
-letter, twice. The room's name is masked from the start, so its shape is free. The lot comes
-to 95: every hint is always within reach, and naming a room after taking them all still pays
-5.
+enemy list 5, the connecting rooms 15, the room graphics 20, and the name 12 for one random
+letter. The room's name is masked from the start, so its shape is free. Letters go on selling
+for as long as you can pay for them, up to half the letters in the name — half is something
+to work from, all of it would be the answer. One of every hint comes to 57, so every hint is
+always within reach and naming a room after taking them all still pays.
 
 A room is lost by giving up or by guessing wrong, never by buying. A hint priced at exactly
 what is left would empty the room, so it is not for sale — its button is shown, disabled, so

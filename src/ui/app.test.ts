@@ -5,7 +5,7 @@ import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS, MAX_TILE_SIZE, VIEWPORT } from '../render/renderer';
 import { ROUND_LENGTH } from '../game/session';
 import {
-  MAX_GUESSES, STARTING_POINTS, HINT_COSTS, HINT_ORDER, NAME_LETTERS, WRONG_GUESS_COST,
+  MAX_GUESSES, STARTING_POINTS, HINT_COSTS, HINT_ORDER, WRONG_GUESS_COST,
 } from '../game/costs';
 import type { Renderer } from '../render/renderer';
 import type { App } from './app';
@@ -35,6 +35,12 @@ const buy = (kind: string) => {
   button.click();
 };
 const giveUp = () => click('button[data-action=give-up]');
+/** Buys name letters until none is left for sale, and says how many that was. */
+const buyEveryLetter = (): number => {
+  let bought = 0;
+  while (buyButton('name') && !buyButton('name')?.disabled) { buy('name'); bought += 1; }
+  return bought;
+};
 /**
  * A room that is neither the answer nor one already named on it: repeating a guess is
  * refused rather than graded, so every call has to bring something new.
@@ -984,9 +990,10 @@ describe('the fact panel', () => {
     expect(q('[data-role=room-name]').textContent).toHaveLength('Volcano Room'.length);
   });
 
-  it('stops selling letters once the name hint is used up', () => {
-    only('Volcano Room');
-    for (let i = 0; i < NAME_LETTERS; i += 1) buy('name');
+  /** "Climb" has five letters, so two of them are for sale and no more. */
+  it('stops selling letters once half the name is showing', () => {
+    only('Climb');
+    expect(buyEveryLetter()).toBe(2);
     expect(buyButton('name')).toBeNull();
   });
 
@@ -1164,26 +1171,26 @@ describe('buying hints', () => {
       .toContain(String(STARTING_POINTS - HINT_COSTS.area - HINT_COSTS.enemies));
   });
 
-  /** Buying the lot still leaves something to win, so nothing is ever priced out of reach. */
-  it('lets every hint be bought on one room, and still pays for naming it', () => {
+  /** One of each is always within reach, and taking them all still leaves something to win. */
+  it('lets one of every hint be bought on a room, and still pays for naming it', () => {
     const app = only('Volcano Room');
     for (const kind of HINT_ORDER) {
       expect(buyButton(kind)?.disabled, kind).toBe(false);
       buy(kind);
     }
-    for (let i = 1; i < NAME_LETTERS; i += 1) buy('name');
-    expect(q('[data-role=points]').textContent).toContain('5 points');
+    const left = STARTING_POINTS - HINT_ORDER.reduce((n, k) => n + HINT_COSTS[k], 0);
+    expect(q('[data-role=points]').textContent).toContain(`${left} points`);
     type('Volcano Room');
     click('button[data-action=guess]');
     expect(app.session.state()).toBe('solved');
-    expect(q('[data-role=points]').textContent).toContain('5 points');
+    expect(q('[data-role=points]').textContent).toContain(`${left} points`);
   });
 
-  /** The shared purse: buy the lot and a single wrong answer is more than you have. */
-  it('leaves no room to be wrong once everything is bought', () => {
+  /** The shared purse: spend it all on letters and a single wrong answer is too much. */
+  it('leaves no room to be wrong once everything is spent', () => {
     const app = only('Volcano Room');
     for (const kind of HINT_ORDER) buy(kind);
-    for (let i = 1; i < NAME_LETTERS; i += 1) buy('name');
+    buyEveryLetter();
     wrongGuess(app);
     expect(app.session.state()).toBe('lost');
     expect(q('[data-role=points]').textContent).toMatch(/\b0 points\b/);
@@ -1192,14 +1199,13 @@ describe('buying hints', () => {
   /** A room is never lost by buying, so what would empty it is shown but not for sale. */
   it('turns off a hint that would take the last of the points', () => {
     const app = only('Volcano Room');
-    for (let i = 0; i < 5; i += 1) wrongGuess(app);
-    expect(q('[data-role=points]').textContent).toContain('50 points');
-    buy('name');
-    expect(q('[data-role=points]').textContent).toContain(`${HINT_COSTS.name} points`);
-    expect(buyButton('name')?.disabled).toBe(true);
-    buyButton('name')?.click();
+    // Eight wrong answers leave twenty, which is exactly what the room graphics cost.
+    for (let i = 0; i < 8; i += 1) wrongGuess(app);
+    expect(q('[data-role=points]').textContent).toContain('20 points');
+    expect(buyButton('diagram')?.disabled).toBe(true);
+    buyButton('diagram')?.click();
     expect(app.session.state()).toBe('guessing');
-    expect(q('[data-role=points]').textContent).toContain(`${HINT_COSTS.name} points`);
+    expect(q('[data-role=points]').textContent).toContain('20 points');
   });
 
   it('has nothing left to sell once the room is over', () => {

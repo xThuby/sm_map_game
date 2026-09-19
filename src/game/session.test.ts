@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSession, shuffleBag, nameHint, ROUND_LENGTH } from './session';
 import {
-  MAX_GUESSES, HINT_ORDER, HINT_COSTS, STARTING_POINTS, NAME_LETTERS, WRONG_GUESS_COST,
+  MAX_GUESSES, HINT_ORDER, HINT_COSTS, STARTING_POINTS, NAME_LETTER_SHARE, WRONG_GUESS_COST,
 } from './costs';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS } from '../render/renderer';
@@ -11,6 +11,13 @@ const seeded = (seed: number) => {
   let s = seed;
   return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
 };
+/** Buys name letters until there are none left to sell, and says how many that was. */
+const buyEveryLetter = (s: ReturnType<typeof only>): number => {
+  let bought = 0;
+  while (s.offers().find((o) => o.kind === 'name')?.affordable) { s.buyHint('name'); bought += 1; }
+  return bought;
+};
+
 /** A run of distinct wrong answers: naming one already given is refused, not charged. */
 const wrongRun = (except: string) => {
   const names = rooms.filter((r) => r.name !== except).map((r) => r.name);
@@ -131,12 +138,12 @@ describe('guesses', () => {
     expect(s.state()).toBe('lost');
   });
 
-  /** The shared purse means buying everything leaves no room to be wrong. Accepted. */
-  it('can leave a player who bought everything unable to afford a wrong answer', () => {
+  /** The shared purse means spending it all leaves no room to be wrong. Accepted. */
+  it('can leave a player who spent everything unable to afford a wrong answer', () => {
     const s = only('Volcano Room');
     for (const kind of HINT_ORDER) s.buyHint(kind);
-    for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
-    expect(s.points()).toBe(5);
+    buyEveryLetter(s);
+    expect(s.points()).toBeLessThan(WRONG_GUESS_COST);
     s.guess('Landing Site');
     expect(s.state()).toBe('lost');
   });
@@ -298,34 +305,31 @@ describe('guesses', () => {
 describe('buying hints', () => {
   /** The name is priced per letter, so it is the only one that costs twice. */
   it('prices the hints as advertised', () => {
-    expect(HINT_COSTS).toEqual({ area: 5, enemies: 5, neighbour: 15, diagram: 20, name: 25 });
+    expect(HINT_COSTS).toEqual({ area: 5, enemies: 5, neighbour: 15, diagram: 20, name: 12 });
   });
 
   /**
-   * A player who buys the lot still walks away with something for naming the room. That is
-   * the whole point of the prices: every hint is always within reach, and the cost of taking
-   * them all is that the room is worth 5 instead of 100 — not that it is worth nothing.
+   * One of every hint is always within reach, and taking them all still leaves something to
+   * win. The name is the open-ended one, so there is no fixed price for the lot.
    */
-  it('leaves a little over when every hint is bought', () => {
+  it('lets one of every hint be had, and leaves something over', () => {
     const s = only('Volcano Room');
     for (const kind of HINT_ORDER) {
       expect(s.offers().find((o) => o.kind === kind)?.affordable, kind).toBe(true);
       s.buyHint(kind);
     }
-    for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
-    expect(s.points()).toBe(5);
+    expect(s.points()).toBe(STARTING_POINTS - 5 - 5 - 15 - 20 - 12);
     expect(s.state()).toBe('guessing');
-    expect(s.offers().every((o) => o.bought)).toBe(true);
   });
 
   /** Buying empties a room; it never ends one. Only a wrong answer can do that. */
   it('is still in play after everything the hints can take', () => {
     const s = only('Volcano Room');
     for (const kind of HINT_ORDER) s.buyHint(kind);
-    for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
+    buyEveryLetter(s);
     expect(s.guess('Volcano Room').correct).toBe(true);
     expect(s.state()).toBe('solved');
-    expect(s.points()).toBe(5);
+    expect(s.points()).toBeGreaterThan(0);
   });
 
   it('offers every hint from the start, priced and unbought', () => {
@@ -401,11 +405,30 @@ describe('buying hints', () => {
     }
   });
 
-  it('stops selling letters at the limit', () => {
-    const s = only('Volcano Room');
-    for (let i = 0; i < NAME_LETTERS; i += 1) s.buyHint('name');
+  /** No fixed number of letters: they go on selling while they can be paid for. */
+  it('sells more than a couple of letters when there is the money for them', () => {
+    const s = only('Green Brinstar Main Shaft Save Room');
+    const bought = buyEveryLetter(s);
+    expect(bought).toBe(8);
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name * 8);
+    expect(s.points()).toBeLessThan(HINT_COSTS.name);
+  });
+
+  /** Half of it, rounded down. "Climb" has five letters, so two of them are for sale. */
+  it('never uncovers more than half a name, however deep the pockets', () => {
+    const s = only('Climb');
+    expect(buyEveryLetter(s)).toBe(2);
+    expect(s.nameLetters()).toBe(2);
+    expect(uncovered(s.nameMask(), 'Climb')).toBe(2);
     expect(() => s.buyHint('name')).toThrow(/already/i);
-    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name * NAME_LETTERS);
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name * 2);
+  });
+
+  it("keeps every room name at least half hidden", () => {
+    for (const room of loadRooms()) {
+      const letters = [...room.name].filter((ch) => /[A-Za-z0-9]/.test(ch)).length;
+      expect(Math.floor(letters * NAME_LETTER_SHARE), room.name).toBeLessThan(letters);
+    }
   });
 
   it('shows the whole name once the room is over', () => {
@@ -421,31 +444,32 @@ describe('buying hints', () => {
   it('will not sell a hint that would take the last of the points', () => {
     const s = only('Volcano Room');
     const wrong = wrongRun('Volcano Room');
-    for (let i = 0; i < 5; i += 1) s.guess(wrong());
-    expect(s.points()).toBe(50);
-    s.buyHint('name');
-    expect(s.points()).toBe(HINT_COSTS.name);
+    // Eight wrong answers leave twenty, with area and enemies thrown in along the way.
+    for (let i = 0; i < 8; i += 1) s.guess(wrong());
+    expect(s.points()).toBe(20);
+    expect(HINT_COSTS.diagram).toBe(20);
 
-    expect(s.offers().find((o) => o.kind === 'name')?.affordable).toBe(false);
-    expect(() => s.buyHint('name')).toThrow(/points/i);
-    expect(s.points()).toBe(HINT_COSTS.name);
+    expect(s.offers().find((o) => o.kind === 'diagram')?.affordable).toBe(false);
+    expect(() => s.buyHint('diagram')).toThrow(/points/i);
+    expect(s.points()).toBe(20);
     expect(s.state()).toBe('guessing');
   });
 
-  it('still sells anything that leaves something behind', () => {
+  /** Exactly what is in hand is refused; anything under it is not. */
+  it('still sells what leaves something behind', () => {
     const s = only('Volcano Room');
     const wrong = wrongRun('Volcano Room');
-    for (let i = 0; i < 5; i += 1) s.guess(wrong());
+    for (let i = 0; i < 8; i += 1) s.guess(wrong());
+    expect(s.offers().find((o) => o.kind === 'neighbour')?.affordable).toBe(true);
     s.buyHint('neighbour');
-    expect(s.points()).toBe(35);
-    expect(s.offers().find((o) => o.kind === 'name')?.affordable).toBe(true);
-    s.buyHint('name');
-    expect(s.points()).toBe(10);
+    expect(s.points()).toBe(5);
     expect(s.state()).toBe('guessing');
+    // Nothing that is left costs under five.
+    expect(s.offers().some((o) => o.affordable)).toBe(false);
   });
 
-  it('counts the name as bought only once every letter is paid for', () => {
-    const s = only('Volcano Room');
+  it('counts the name as bought only once every letter it will sell is paid for', () => {
+    const s = only('Climb');
     s.buyHint('name');
     expect(s.offers().find((o) => o.kind === 'name')?.bought).toBe(false);
     expect(s.offers().find((o) => o.kind === 'name')?.affordable).toBe(true);

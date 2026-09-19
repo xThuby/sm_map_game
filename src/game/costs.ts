@@ -5,10 +5,10 @@
  * A TypeScript file rather than JSON on purpose: `HINT_COSTS` is keyed by `HintKind`, so
  * dropping a hint or misspelling one is a compile error rather than a silent zero.
  *
- * Two invariants worth keeping in mind when changing anything here. Every hint together
- * should come to less than `STARTING_POINTS`, or a player who needs all of them walks away
- * with nothing for naming the room — the case the hints exist for. And `WRONG_GUESS_COST`
- * should divide `STARTING_POINTS`, or `MAX_GUESSES` stops being a whole number of guesses.
+ * Two invariants worth keeping in mind when changing anything here. One of every hint should
+ * come to less than `STARTING_POINTS`, or a player who needs all of them walks away with
+ * nothing for naming the room — the case the hints exist for. And `WRONG_GUESS_COST` should
+ * divide `STARTING_POINTS`, or `MAX_GUESSES` stops being a whole number of guesses.
  */
 
 export type HintKind = 'area' | 'enemies' | 'neighbour' | 'diagram' | 'name';
@@ -28,23 +28,27 @@ export const WRONG_GUESS_COST = 10;
 /** The most guesses a room can take: any more and the points are gone. */
 export const MAX_GUESSES = STARTING_POINTS / WRONG_GUESS_COST;
 
-/** How many letters of the name the hint will sell, one purchase each. */
-export const NAME_LETTERS = 2;
+/**
+ * The most of a name the hint will ever uncover, as a share of its letters. Letters are sold
+ * one at a time for as long as they can be paid for, so without this a long enough name
+ * could be bought outright — which is not a hint, it is the answer.
+ */
+export const NAME_LETTER_SHARE = 0.5;
 
 /**
- * What each hint costs — for the name, what each of its letters costs, so the whole name
- * comes to 50.
+ * What each hint costs — for the name, what one more letter of it costs, however many have
+ * been bought already.
  *
- * Everything together comes to 95, so a player who buys the lot still takes 5 points for
- * naming the room. Knowing the room and not being able to name it is the case this is all
- * for: the way out of it has to be affordable, and it has to leave something behind.
+ * One of each comes to 57, so every hint is always within reach and a player who takes them
+ * all still has something to win. The name is the open-ended one: letters go on selling
+ * until they cannot be paid for, or until half the name is showing.
  */
 export const HINT_COSTS: Record<HintKind, number> = {
   area: 5,
   enemies: 5,
   neighbour: 15,
   diagram: 20,
-  name: 25,
+  name: 12,
 };
 
 /**

@@ -3,7 +3,7 @@ import type { NameIndex } from './matching';
 import { equivalenceGroup, loadRooms } from '../rooms';
 import type { RenderSettings, Room } from '../types';
 import {
-  AUTO_HINTS, HINT_COSTS, HINT_ORDER, NAME_LETTERS, STARTING_POINTS, WRONG_GUESS_COST,
+  AUTO_HINTS, HINT_COSTS, HINT_ORDER, NAME_LETTER_SHARE, STARTING_POINTS, WRONG_GUESS_COST,
 } from './costs';
 import type { HintKind } from './costs';
 
@@ -179,7 +179,7 @@ export interface Session {
   hints(): Hint[];
   /** Every hint there is, priced, whether bought or not. */
   offers(): HintOffer[];
-  /** How many letters of the name have been paid for, up to NAME_LETTERS. */
+  /** How many letters of the name have been paid for. */
   nameLetters(): number;
   /** The name with only the bought letters showing — the whole name once the room is over. */
   nameMask(): string;
@@ -237,9 +237,13 @@ export function createSession(options: SessionOptions): Session {
   const timesBought = (kind: HintKind): number =>
     (kind === 'name' ? nameShowing.size : (revealed.has(kind) ? 1 : 0));
 
-  /** The name can only sell as many letters as it has, which is never fewer than two. */
+  /**
+   * Half a name, rounded down — enough to work from, never enough to read off. Everything
+   * else is sold once. Money stops the name sooner than this on most rooms; on a long one
+   * this is what stops it.
+   */
   const limitFor = (kind: HintKind): number =>
-    (kind === 'name' ? Math.min(NAME_LETTERS, letterSpots(room.name).length) : 1);
+    (kind === 'name' ? Math.floor(letterSpots(room.name).length * NAME_LETTER_SHARE) : 1);
 
   /** A room never got is worth nothing, however little was spent working on it. */
   const points = (): number =>
