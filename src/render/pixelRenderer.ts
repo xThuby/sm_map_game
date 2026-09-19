@@ -1,6 +1,7 @@
 import { resolveEdge } from '../signature';
 import { tileArt, variantName } from './tileArt';
 import { paletteFor } from './palette';
+import type { Rgb } from './palette';
 import { grayDoorSide } from './grayDoors';
 import type { Renderer } from './renderer';
 import type { Edge, RenderSettings, Room, Side, Tile } from '../types';
@@ -240,36 +241,54 @@ export function bitmapSize(room: Room, settings: RenderSettings): {
   return { width: room.width * 8 * scale, height: room.height * 8 * scale };
 }
 
+/** How many screen pixels one source pixel takes at a given tile size. */
+export function scaleFor(settings: RenderSettings): number {
+  return Math.max(1, Math.round(settings.tileSize / 8));
+}
+
 /**
- * Draws the room's palette-index bitmap onto a canvas, one source pixel per scale x scale
- * block. Nearest-neighbour by construction, so the art stays crisp at any size rather than
- * being smoothed into mush the way an upscaled image would be.
+ * Draws a palette-index bitmap onto a canvas, one source pixel per scale x scale block.
+ * Nearest-neighbour by construction, so the art stays crisp at any size rather than being
+ * smoothed into mush the way an upscaled image would be.
+ *
+ * Backdrop pixels are left unpainted so the page's own dark ground shows through them —
+ * the gaps inside an L-shaped room, and the space between rooms on a map.
  */
+export function paintBitmap(
+  canvas: HTMLCanvasElement,
+  bitmap: number[][],
+  palette: Record<number, Rgb>,
+  scale: number,
+): void {
+  const width = (bitmap[0]?.length ?? 0) * scale;
+  const height = bitmap.length * scale;
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context is unavailable');
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, width, height);
+
+  for (let y = 0; y < bitmap.length; y += 1) {
+    const row = bitmap[y] as number[];
+    for (let x = 0; x < row.length; x += 1) {
+      const index = row[x] as number;
+      if (index === BACKDROP) continue;
+      const rgb = palette[index] ?? [255, 0, 255];
+      ctx.fillStyle = `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})`;
+      ctx.fillRect(x * scale, y * scale, scale, scale);
+    }
+  }
+}
+
 export const pixelRenderer: Renderer = {
   render(canvas, room, settings) {
-    const scale = Math.max(1, Math.round(settings.tileSize / 8));
-    const { width, height } = bitmapSize(room, settings);
-    canvas.width = width;
-    canvas.height = height;
-
-    // Backdrop pixels are left unpainted so the page's own dark ground shows through them,
-    // including the gaps inside an L-shaped room.
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas 2D context is unavailable');
-    ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, width, height);
-
-    const palette = paletteFor(room.area, settings.areaColour);
-    const bitmap = renderRoomBitmap(room, settings);
-    for (let y = 0; y < bitmap.length; y += 1) {
-      const row = bitmap[y] as number[];
-      for (let x = 0; x < row.length; x += 1) {
-        const index = row[x] as number;
-        if (index === BACKDROP) continue;
-        const rgb = palette[index] ?? [255, 0, 255];
-        ctx.fillStyle = `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})`;
-        ctx.fillRect(x * scale, y * scale, scale, scale);
-      }
-    }
+    paintBitmap(
+      canvas,
+      renderRoomBitmap(room, settings),
+      paletteFor(room.area, settings.areaColour),
+      scaleFor(settings),
+    );
   },
 };

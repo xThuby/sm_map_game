@@ -21,10 +21,11 @@ export const VIEWPORT = { width: 760, height: 620 };
 export function fitTileSize(
   room: Pick<Room, 'width' | 'height'>,
   viewport: { width: number; height: number },
+  minimum: number = MIN_TILE_SIZE,
 ): number {
   const limit = Math.min(viewport.width / room.width, viewport.height / room.height);
   const steps = Math.floor(limit / 8) * 8;
-  return Math.min(Math.max(steps, MIN_TILE_SIZE), MAX_TILE_SIZE);
+  return Math.min(Math.max(steps, minimum), MAX_TILE_SIZE);
 }
 
 export interface Renderer {
