@@ -35,10 +35,18 @@ const buy = (kind: string) => {
   button.click();
 };
 const giveUp = () => click('button[data-action=give-up]');
-/** Any room but the one being asked about, so the guess is wrong but recognised. */
+/**
+ * A room that is neither the answer nor one already named on it: repeating a guess is
+ * refused rather than graded, so every call has to bring something new.
+ */
+const untriedWrong = (app: App): string => {
+  const tried = new Set(app.session.wrongGuesses().map((r) => r.id));
+  const other = rooms
+    .find((r) => r.id !== app.session.current().id && !tried.has(r.id)) as { name: string };
+  return other.name;
+};
 const wrongGuess = (app: App) => {
-  const other = rooms.find((r) => r.id !== app.session.current().id) as { name: string };
-  type(other.name);
+  type(untriedWrong(app));
   click('button[data-action=guess]');
 };
 const type = (value: string) => {
@@ -349,10 +357,14 @@ describe('par', () => {
   it('follows the room being looked back at', () => {
     mount();
     const shownFirst = q('[data-role=par]').textContent;
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { giveUp(); click('button[data-action=next]'); }
     giveUp();
-    click('button[data-action=next]');
     q<HTMLInputElement>('input[name=answer]').blur();
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }),
+      );
+    }
     expect(q('[data-role=par]').textContent).toBe(shownFirst);
   });
 });
@@ -500,7 +512,6 @@ describe('the room diagram hint', () => {
     void app;
   });
 });
-
 describe('looking back at earlier rooms', () => {
   const arrow = (key: 'ArrowLeft' | 'ArrowRight') => {
     // Advancing focuses the answer box for typing, so stepping away from it is what a
@@ -510,9 +521,17 @@ describe('looking back at earlier rooms', () => {
     document.dispatchEvent(e);
     return e;
   };
-  const finish = () => {
+  /** Plays a whole round out by giving up on each room, handing back the names in order. */
+  const playRoundRecording = (app: App): string[] => {
+    const names: string[] = [];
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) {
+      names.push(app.session.current().name);
+      giveUp();
+      click('button[data-action=next]');
+    }
+    names.push(app.session.current().name);
     giveUp();
-    click('button[data-action=next]');
+    return names;
   };
 
   it('has nothing to go back to at the start', () => {
@@ -523,103 +542,114 @@ describe('looking back at earlier rooms', () => {
     expect(app.session.current().name).toBe(first);
   });
 
-  it('goes back to the room before this one', () => {
+  /** Looking back mid-round is a way of stalling on the room in front of you. */
+  it('does not walk back while the round is still going', () => {
     const app = mount();
-    const first = app.session.current().name;
-    finish();
+    giveUp();
+    click('button[data-action=next]');
+    const second = app.session.current().name;
     arrow('ArrowLeft');
-    expect(q('[data-role=room-name]').textContent).toBe(first);
+    expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(false);
+    expect(app.session.current().name).toBe(second);
+    expect(q('[data-role=score]').textContent).toMatch(/Room 2 of 6/);
+  });
+
+  it('goes back to the room before this one once the round is over', () => {
+    const app = mount();
+    const names = playRoundRecording(app);
+    arrow('ArrowLeft');
+    expect(q('[data-role=room-name]').textContent).toBe(names[ROUND_LENGTH - 2]);
   });
 
   it('comes forward again to the room in play', () => {
-    mount();
-    finish();
+    const app = mount();
+    const names = playRoundRecording(app);
     arrow('ArrowLeft');
     arrow('ArrowRight');
-    expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(false);
+    expect(q('[data-role=room-name]').textContent).toBe(names[ROUND_LENGTH - 1]);
+    expect(q('[data-role=prompt]').textContent).toMatch(/which room is this/i);
   });
 
-  it('stops at the oldest room rather than wrapping', () => {
+  it('stops at the oldest room of the round rather than wrapping', () => {
     const app = mount();
-    const first = app.session.current().name;
-    finish();
-    for (let i = 0; i < 5; i += 1) arrow('ArrowLeft');
-    expect(q('[data-role=room-name]').textContent).toBe(first);
+    const names = playRoundRecording(app);
+    for (let i = 0; i < ROUND_LENGTH + 4; i += 1) arrow('ArrowLeft');
+    expect(q('[data-role=room-name]').textContent).toBe(names[0]);
   });
 
   /** Rounds are the unit of play; the one before it is done with. */
   it('will not walk back into the round before this one', () => {
     const app = mount();
-    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) finish();
-    giveUp();
+    const first = playRoundRecording(app);
     click('button[data-action=new-round]');
-    const opener = app.session.current().name;
-    for (let i = 0; i < 4; i += 1) arrow('ArrowLeft');
-    expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(false);
-    expect(q('[data-role=room-name]').textContent).not.toBe(opener);
+    const second = playRoundRecording(app);
+    for (let i = 0; i < ROUND_LENGTH + 4; i += 1) arrow('ArrowLeft');
+    expect(q('[data-role=room-name]').textContent).toBe(second[0]);
+    expect(q('[data-role=room-name]').textContent).not.toBe(first[ROUND_LENGTH - 1]);
     expect(q('[data-role=score]').textContent).toMatch(/Room 1 of 6/);
   });
 
   /** A line naming what you are looking at, which the reveal below already says. */
   it('does not announce what it is looking back at', () => {
-    mount();
-    finish();
+    const app = mount();
+    playRoundRecording(app);
     arrow('ArrowLeft');
     expect(root.textContent).not.toMatch(/looking back/i);
   });
 
   it('asks what the room is, and says what it was', () => {
-    mount();
+    const app = mount();
     expect(q('[data-role=prompt]').textContent).toMatch(/which room is this/i);
-    finish();
+    playRoundRecording(app);
     arrow('ArrowLeft');
     expect(q('[data-role=prompt]').textContent).toBe('This room was');
     arrow('ArrowRight');
     expect(q('[data-role=prompt]').textContent).toMatch(/which room is this/i);
   });
 
-  it('counts the room you are looking at, not the one in play', () => {
-    mount();
-    finish();
-    finish();
-    expect(q('[data-role=score]').textContent).toMatch(/Room 3 of 6/);
-    arrow('ArrowLeft');
-    expect(q('[data-role=score]').textContent).toMatch(/Room 2 of 6/);
-    arrow('ArrowLeft');
-    expect(q('[data-role=score]').textContent).toMatch(/Room 1 of 6/);
-    arrow('ArrowRight');
-    arrow('ArrowRight');
-    expect(q('[data-role=score]').textContent).toMatch(/Room 3 of 6/);
-  });
-
-  /** What the round stood at then, not what it stands at now. */
-  it('shows the round total as it was at that room', () => {
-    const app = mount();
-    type(app.session.current().name);
-    click('button[data-action=guess]');
-    const afterFirst = q('[data-role=total]').textContent;
-    click('button[data-action=next]');
-    type(app.session.current().name);
-    click('button[data-action=guess]');
-    expect(q('[data-role=total]').textContent).toContain(String(STARTING_POINTS * 2));
-    arrow('ArrowLeft');
-    expect(q('[data-role=total]').textContent).toBe(afterFirst);
-    expect(afterFirst).toContain(String(STARTING_POINTS));
-  });
-
   it('hides the guessing controls while looking back', () => {
-    mount();
-    finish();
+    const app = mount();
+    playRoundRecording(app);
     arrow('ArrowLeft');
     expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(true);
     arrow('ArrowRight');
     expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(false);
   });
 
+  it('counts the room you are looking at, not the one in play', () => {
+    const app = mount();
+    playRoundRecording(app);
+    expect(q('[data-role=score]').textContent).toMatch(/Room 6 of 6/);
+    arrow('ArrowLeft');
+    expect(q('[data-role=score]').textContent).toMatch(/Room 5 of 6/);
+    arrow('ArrowLeft');
+    expect(q('[data-role=score]').textContent).toMatch(/Room 4 of 6/);
+    arrow('ArrowRight');
+    arrow('ArrowRight');
+    expect(q('[data-role=score]').textContent).toMatch(/Room 6 of 6/);
+  });
+
+  /** What the round stood at then, not what it stands at now. */
+  it('shows the round total as it was at that room', () => {
+    const app = mount();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) {
+      type(app.session.current().name);
+      click('button[data-action=guess]');
+      click('button[data-action=next]');
+    }
+    type(app.session.current().name);
+    click('button[data-action=guess]');
+    expect(q('[data-role=total]').textContent)
+      .toContain(String(STARTING_POINTS * ROUND_LENGTH));
+    arrow('ArrowLeft');
+    expect(q('[data-role=total]').textContent)
+      .toContain(String(STARTING_POINTS * (ROUND_LENGTH - 1)));
+  });
+
   /** Arrows have to keep moving the caret while the answer box has focus. */
   it('leaves the arrows alone while the box is focused', () => {
-    mount();
-    finish();
+    const app = mount();
+    playRoundRecording(app);
     const input = q<HTMLInputElement>('input[name=answer]');
     input.focus();
     const e = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
@@ -902,8 +932,7 @@ describe('finishing a room with the keyboard', () => {
     for (let i = 0; i < MAX_GUESSES - 1; i += 1) wrongGuess(app);
     type('definitely not a room');
     press('Enter');
-    const other = rooms.find((r) => r.id !== app.session.current().id) as { name: string };
-    type(other.name);
+    type(untriedWrong(app));
     press('Enter');
     expect(app.session.state()).not.toBe('guessing');
     press('Enter');
@@ -1034,18 +1063,20 @@ describe('buying hints', () => {
       .toContain(String(STARTING_POINTS - HINT_COSTS.area - HINT_COSTS.enemies));
   });
 
-  /** Buying the lot still leaves something to win, so nothing is ever priced out of reach. */
-  it('lets every hint be bought on one room, and still pays for naming it', () => {
-    only('Volcano Room');
+  /** Nothing is ever priced out of reach; the lot comes to exactly what a room is worth. */
+  it('lets every hint be bought on one room, leaving it worth nothing', () => {
+    const app = only('Volcano Room');
     for (const kind of HINT_ORDER) {
       expect(buyButton(kind)?.disabled, kind).toBe(false);
       buy(kind);
     }
     for (let i = 1; i < NAME_LETTERS; i += 1) buy('name');
-    expect(q('[data-role=points]').textContent).toContain('5 points');
+    expect(q('[data-role=points]').textContent).toMatch(/\b0 points\b/);
+    // Spending the lot empties a room; it does not end one.
+    expect(app.session.state()).toBe('guessing');
     type('Volcano Room');
     click('button[data-action=guess]');
-    expect(q('[data-role=points]').textContent).toContain('5 points');
+    expect(app.session.state()).toBe('solved');
   });
 
   /** The shared purse: buy the lot and a single wrong answer is more than you have. */
@@ -1081,6 +1112,44 @@ describe('the rooms already tried', () => {
   it('says nothing before anything has been tried', () => {
     only('Volcano Room');
     expect(tried()).toBe('');
+  });
+
+  it('calls them previous guesses', () => {
+    only('Volcano Room');
+    type('Landing Site');
+    click('button[data-action=guess]');
+    expect(tried()).toMatch(/^Previous guesses:/);
+  });
+
+  /** A room already ruled out is not a new guess: nothing to grade, so nothing to pay. */
+  it('refuses a room already guessed, and says which', () => {
+    only('Volcano Room');
+    type('Landing Site');
+    click('button[data-action=guess]');
+    const after = q('[data-role=points]').textContent;
+    type('Landing Site');
+    click('button[data-action=guess]');
+    expect(q('[data-role=verdict]').textContent).toBe('Already guessed Landing Site.');
+    expect(q('[data-role=points]').textContent).toBe(after);
+  });
+
+  it('does not list the same room twice', () => {
+    only('Volcano Room');
+    for (let i = 0; i < 2; i += 1) {
+      type('Landing Site');
+      click('button[data-action=guess]');
+    }
+    expect(tried()).toBe('Previous guesses: Landing Site');
+  });
+
+  /** Nothing was spent, so nothing the player typed is thrown away. */
+  it('leaves the repeated name in the box to be edited', () => {
+    only('Volcano Room');
+    type('Landing Site');
+    click('button[data-action=guess]');
+    type('Landing Site');
+    click('button[data-action=guess]');
+    expect(q<HTMLInputElement>('input[name=answer]').value).toBe('Landing Site');
   });
 
   it('lists each wrong answer, oldest first', () => {

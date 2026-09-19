@@ -30,15 +30,15 @@ export const NAME_LETTERS = 2;
  * What each hint costs out of the room's hundred points — for the name, what each letter of
  * it costs, so the whole name comes to 50.
  *
- * Everything together comes to 95, so a player who buys the lot still takes 5 points for
- * naming the room. Knowing the room and not being able to name it is the case this is all
- * for: the way out of it has to be affordable, and it has to leave something behind.
+ * Everything together comes to exactly 100. Every hint is always within reach, but a player
+ * who takes them all has nothing left: the room is still there to be named, and naming it is
+ * worth nothing. Buying does not end a room, though — only a wrong answer can do that.
  */
 export const HINT_COSTS: Record<HintKind, number> = {
   area: 5,
   enemies: 10,
   neighbour: 15,
-  diagram: 15,
+  diagram: 20,
   name: 25,
 };
 
@@ -107,6 +107,8 @@ export interface Grade {
   correct: boolean;
   /** False when the input named no room at all, which does not cost a guess. */
   recognised: boolean;
+  /** A room already ruled out on this one. Costs nothing, and is not a guess. */
+  repeat: boolean;
   answer: Room | null;
   /** Every room indistinguishable from the one shown, including it. */
   group: Room[];
@@ -244,6 +246,12 @@ export function createSession(options: SessionOptions): Session {
   let nameShowing = new Set<number>();
   /** Points gone: hints bought plus ten for every wrong answer. */
   let spentPoints = 0;
+  /**
+   * Set when a wrong answer takes the last of the points. Buying never ends a room, only
+   * empties it: the hints come to exactly a hundred, and spending the lot on them should
+   * leave a room worth nothing rather than a room already lost.
+   */
+  let bust = false;
   /** The rooms named and found wrong, so they can be shown rather than tried again. */
   let wrong: Room[] = [];
   let grade: Grade | null = null;
@@ -254,12 +262,9 @@ export function createSession(options: SessionOptions): Session {
   let roundStart = 0;
   let round = 1;
 
-  /** Out of points is out of the room: the purse is the only thing rationing a guess. */
-  const broke = (): boolean => spentPoints >= STARTING_POINTS;
-
   const state = (): RoomState => {
     if (solved) return 'solved';
-    return gaveUp || broke() ? 'lost' : 'guessing';
+    return gaveUp || bust ? 'lost' : 'guessing';
   };
 
   const timesBought = (kind: HintKind): number =>
@@ -270,7 +275,8 @@ export function createSession(options: SessionOptions): Session {
     (kind === 'name' ? Math.min(NAME_LETTERS, letterSpots(room.name).length) : 1);
 
   /** A room never got is worth nothing, however little was spent working on it. */
-  const points = (): number => (state() === 'lost' ? 0 : STARTING_POINTS - spentPoints);
+  const points = (): number =>
+    (state() === 'lost' ? 0 : Math.max(STARTING_POINTS - spentPoints, 0));
 
   /** Everything showing once the room is over, so nothing is held back on the reveal. */
   const allNameSpots = (): Set<number> => new Set(letterSpots(room.name));
@@ -305,6 +311,7 @@ export function createSession(options: SessionOptions): Session {
     revealed = new Set();
     nameShowing = new Set();
     spentPoints = 0;
+    bust = false;
     wrong = [];
     grade = null;
     asked += 1;
@@ -381,14 +388,16 @@ export function createSession(options: SessionOptions): Session {
       const result: Grade = {
         correct: named !== null && named.id === room.id,
         recognised: named !== null,
+        repeat: named !== null && wrong.some((r) => r.id === named.id),
         answer: named,
         group: equivalenceGroup(room, settings),
         suggestion: named === null ? (suggestName(input, index)?.room ?? null) : null,
       };
       grade = result;
 
-      // Typing something that names no room at all is a slip, not a guess.
-      if (!result.recognised) return result;
+      // Typing something that names no room at all is a slip, not a guess. Nor is naming a
+      // room already ruled out: there is nothing new to grade, so there is nothing to pay.
+      if (!result.recognised || result.repeat) return result;
 
       spend();
       if (result.correct) {
@@ -400,6 +409,7 @@ export function createSession(options: SessionOptions): Session {
       // Being wrong costs ten, and throws in the next hint there is to give.
       wrong.push(named as Room);
       spentPoints += WRONG_GUESS_COST;
+      if (spentPoints >= STARTING_POINTS) bust = true;
       const consolation = AUTO_HINTS.find((kind) => timesBought(kind) === 0);
       if (consolation) show(consolation);
       return result;

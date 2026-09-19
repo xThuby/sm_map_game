@@ -294,7 +294,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     // gone by is filed under what it was worth, not what was guessed at it.
     const guessed = session.wrongGuesses();
     tried.textContent = !back && guessed.length > 0
-      ? `Already tried: ${guessed.map((r) => r.name).join(', ')}`
+      ? `Previous guesses: ${guessed.map((r) => r.name).join(', ')}`
       : '';
     pointsLabel.textContent = plural(viewedPoints(), 'point');
     // The total is what the round is worth so far, which only means something once the room
@@ -509,12 +509,18 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
 
     const grade = session.guess(input.value);
 
+    // Neither a typo nor a room already ruled out is a guess: both cost nothing and are
+    // graded against nothing, so wiping the box would only throw away work to redo.
     if (!grade.recognised) {
       verdict.textContent = grade.suggestion
         ? `Did you mean ${grade.suggestion.name}?`
         : 'That is not a room name.';
-      // A typo costs nothing and is graded against nothing, so wiping the box would only
-      // throw away work the player has to redo.
+      redraw();
+      return;
+    }
+
+    if (grade.repeat) {
+      verdict.textContent = `Already guessed ${grade.answer?.name}.`;
       redraw();
       return;
     }
@@ -603,9 +609,9 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
    * keep moving the caret while you are typing an answer.
    */
   function look(step: number): void {
-    // Only within this round. The round is the unit of play, and the one before it is done
-    // with — its summary has already been read.
-    const limit = session.roundResults().length - (session.state() === 'guessing' ? 0 : 1);
+    // Not until the round is over, and never past its first room. Looking back mid-round is
+    // a way of stalling on the room in front of you; once the round is done it is revision.
+    const limit = session.roundComplete() ? session.roundResults().length - 1 : 0;
     const next = Math.min(Math.max(lookingBack + step, 0), Math.max(limit, 0));
     if (next === lookingBack) return;
     lookingBack = next;

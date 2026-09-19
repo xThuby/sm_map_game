@@ -8,18 +8,23 @@ Live: https://xthuby.github.io/sm_map_game/
 
 Each room starts at 100 points, and everything comes out of that one purse. Hints are on
 sale from the start rather than handed out on a schedule — the original map area costs 5, the
-enemy list 10, the connecting rooms 15, the room graphics 15, and the name 25 for one random
-letter, twice. The room's name is masked from the start, so its shape is free.
+enemy list 10, the connecting rooms 15, the room graphics 20, and the name 25 for one random
+letter, twice. The room's name is masked from the start, so its shape is free. The lot comes
+to exactly 100: every hint is always within reach, and taking them all leaves the room worth
+nothing when you name it. Buying empties a room but never ends one.
 
 A wrong answer costs 10, and throws in the area hint the first time and the enemy list the
 second — 10 for a hint that costs 5 to ask for, because it is a consolation for the guess
 rather than a cheaper way to the hint. After that a wrong answer just costs the 10. There is
-no guess allowance: you keep going until you name the room or the points run out, which is
-ten wrong answers if you buy nothing. Buying everything comes to 95, which leaves no room to
-be wrong. A room you never get is worth nothing, whatever you spent on it.
+no guess allowance: you keep going until you name the room or a wrong answer takes the last
+of the points, which is ten of them if you buy nothing. A room you never get is worth
+nothing, whatever you spent on it. A room already guessed is refused rather than charged for.
 
 Only the room actually shown counts as right. Rooms that draw identically are named on the
 reveal, but a hint will always separate them, so naming the wrong twin is a wrong answer.
+
+Once a round is over you can walk back through its six rooms with the left and right arrows,
+which show each room as it was and what the round stood at then.
 
 A round is six rooms; after each one you get a summary of how it went — points won, guesses
 taken, rooms going worst — against your running stats, which are kept in the browser.

@@ -11,6 +11,13 @@ const seeded = (seed: number) => {
   let s = seed;
   return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
 };
+/** A run of distinct wrong answers: naming one already given is refused, not charged. */
+const wrongRun = (except: string) => {
+  const names = rooms.filter((r) => r.name !== except).map((r) => r.name);
+  let at = 0;
+  return () => { at += 1; return names[at - 1] as string; };
+};
+
 /** How many letters of the real name a mask is showing. */
 const uncovered = (mask: string, name: string): number =>
   [...mask].filter((ch, i) => ch !== '_' && /[A-Za-z0-9]/.test(name[i] as string)).length;
@@ -78,15 +85,17 @@ describe('guesses', () => {
 
   it('throws in the enemies hint with the second', () => {
     const s = only('Volcano Room');
-    s.guess('Landing Site');
-    s.guess('Landing Site');
+    const wrong = wrongRun('Volcano Room');
+    s.guess(wrong());
+    s.guess(wrong());
     expect(s.hints().map((h) => h.kind)).toEqual(['area', 'enemies']);
     expect(s.points()).toBe(STARTING_POINTS - WRONG_GUESS_COST * 2);
   });
 
   it('takes the ten and gives nothing after that', () => {
     const s = only('Volcano Room');
-    for (let i = 0; i < 3; i += 1) s.guess('Landing Site');
+    const wrong = wrongRun('Volcano Room');
+    for (let i = 0; i < 3; i += 1) s.guess(wrong());
     expect(s.hints().map((h) => h.kind)).toEqual(['area', 'enemies']);
     expect(s.points()).toBe(STARTING_POINTS - WRONG_GUESS_COST * 3);
   });
@@ -102,8 +111,9 @@ describe('guesses', () => {
 
   it('is lost once the points run out', () => {
     const s = only('Volcano Room');
+    const wrong = wrongRun('Volcano Room');
     for (let i = 0; i < MAX_GUESSES; i += 1) {
-      if (s.state() === 'guessing') s.guess('Landing Site');
+      if (s.state() === 'guessing') s.guess(wrong());
     }
     expect(s.points()).toBe(0);
     expect(s.state()).toBe('lost');
@@ -112,11 +122,12 @@ describe('guesses', () => {
   /** Ten a guess out of a hundred: ten guesses is all a room can take, hints aside. */
   it('allows no more guesses than the points cover', () => {
     const s = only('Volcano Room');
+    const wrong = wrongRun('Volcano Room');
     expect(MAX_GUESSES).toBe(STARTING_POINTS / WRONG_GUESS_COST);
-    for (let i = 0; i < MAX_GUESSES - 1; i += 1) s.guess('Landing Site');
+    for (let i = 0; i < MAX_GUESSES - 1; i += 1) s.guess(wrong());
     expect(s.state()).toBe('guessing');
     expect(s.points()).toBe(WRONG_GUESS_COST);
-    s.guess('Landing Site');
+    s.guess(wrong());
     expect(s.state()).toBe('lost');
   });
 
@@ -125,7 +136,7 @@ describe('guesses', () => {
     const s = only('Volcano Room');
     for (const kind of HINT_ORDER) s.buyHint(kind);
     for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
-    expect(s.points()).toBe(5);
+    expect(s.points()).toBe(0);
     s.guess('Landing Site');
     expect(s.state()).toBe('lost');
   });
@@ -153,6 +164,48 @@ describe('guesses', () => {
     s.guess('Landing Site');
     s.guess('The Moat');
     expect(s.wrongGuesses().map((r) => r.name)).toEqual(['Landing Site', 'The Moat']);
+  });
+
+  /** A room already ruled out is not a new guess, so it costs nothing and changes nothing. */
+  it('refuses a room already guessed, and charges nothing for it', () => {
+    const s = only('Volcano Room');
+    s.guess('Landing Site');
+    const before = s.points();
+    const grade = s.guess('Landing Site');
+    expect(grade.repeat).toBe(true);
+    expect(grade.correct).toBe(false);
+    expect(grade.answer?.name).toBe('Landing Site');
+    expect(s.points()).toBe(before);
+    expect(s.guessesUsed()).toBe(1);
+  });
+
+  it('does not list the same room twice', () => {
+    const s = only('Volcano Room');
+    s.guess('Landing Site');
+    s.guess('Landing Site');
+    expect(s.wrongGuesses().map((r) => r.name)).toEqual(['Landing Site']);
+  });
+
+  it('charges for the next new room after a repeat', () => {
+    const s = only('Volcano Room');
+    s.guess('Landing Site');
+    s.guess('Landing Site');
+    s.guess('The Moat');
+    expect(s.points()).toBe(STARTING_POINTS - WRONG_GUESS_COST * 2);
+    expect(s.wrongGuesses().map((r) => r.name)).toEqual(['Landing Site', 'The Moat']);
+  });
+
+  /** An alias for a room already guessed is the same room, and is refused the same way. */
+  it('sees through an alias to the room already guessed', () => {
+    const s = only('Volcano Room');
+    s.guess('Lower Norfair Escape Power Bomb Room');
+    expect(s.guess('The Jail').repeat).toBe(true);
+  });
+
+  it('marks a fresh guess as no repeat', () => {
+    const s = only('Volcano Room');
+    expect(s.guess('Landing Site').repeat).toBe(false);
+    expect(s.guess('Volcano Room').repeat).toBe(false);
   });
 
   it('does not count the right answer, or one that names no room, among them', () => {
@@ -214,23 +267,33 @@ describe('guesses', () => {
 describe('buying hints', () => {
   /** The name is priced per letter, so it is the only one that costs twice. */
   it('prices the hints as advertised', () => {
-    expect(HINT_COSTS).toEqual({ area: 5, enemies: 10, neighbour: 15, diagram: 15, name: 25 });
+    expect(HINT_COSTS).toEqual({ area: 5, enemies: 10, neighbour: 15, diagram: 20, name: 25 });
   });
 
   /**
-   * A player who buys the lot still walks away with something for naming the room. That is
-   * the whole point of the prices: every hint is always within reach, and the cost of taking
-   * them all is that the room is worth 5 instead of 100 — not that it is worth nothing.
+   * Every hint is always within reach — the lot comes to exactly a hundred. What it costs to
+   * take them all is the room itself: it is still there to name, and worth nothing when you
+   * do. Buying does not end a room, though, or the last purchase would be a trap.
    */
-  it('leaves a little over when every hint is bought', () => {
+  it('leaves nothing at all when every hint is bought, and the room still in play', () => {
     const s = only('Volcano Room');
     for (const kind of HINT_ORDER) {
       expect(s.offers().find((o) => o.kind === kind)?.affordable, kind).toBe(true);
       s.buyHint(kind);
     }
     for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
-    expect(s.points()).toBe(5);
+    expect(s.points()).toBe(0);
+    expect(s.state()).toBe('guessing');
     expect(s.offers().every((o) => o.bought)).toBe(true);
+  });
+
+  it('still lets the room be named for nothing after that', () => {
+    const s = only('Volcano Room');
+    for (const kind of HINT_ORDER) s.buyHint(kind);
+    for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
+    expect(s.guess('Volcano Room').correct).toBe(true);
+    expect(s.state()).toBe('solved');
+    expect(s.points()).toBe(0);
   });
 
   it('offers every hint from the start, priced and unbought', () => {
@@ -368,8 +431,9 @@ describe('buying hints', () => {
 
   it('is worth nothing once the room is lost', () => {
     const s = only('Volcano Room');
+    const wrong = wrongRun('Volcano Room');
     s.buyHint('area');
-    for (let i = 0; i < MAX_GUESSES; i += 1) s.guess('Landing Site');
+    for (let i = 0; i < MAX_GUESSES; i += 1) if (s.state() === 'guessing') s.guess(wrong());
     expect(s.state()).toBe('lost');
     expect(s.points()).toBe(0);
   });
@@ -442,9 +506,9 @@ describe('scoring and progress', () => {
 
   it('counts guesses used across a room', () => {
     const s = make();
-    const wrong = rooms.find((r) => r.id !== s.current().id) as { name: string };
-    s.guess(wrong.name);
-    s.guess(wrong.name);
+    const wrong = wrongRun(s.current().name);
+    s.guess(wrong());
+    s.guess(wrong());
     s.guess(s.current().name);
     expect(s.score()).toEqual({ asked: 1, solved: 1, guessesUsed: 3 });
   });
