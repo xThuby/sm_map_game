@@ -56,24 +56,39 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   const session = createSession({ rooms, settings, random });
   const index = buildNameIndex(loadRooms());
 
+  /**
+   * Two columns: the map on the left, everything you act on on the right. A tall shaft runs
+   * well past the fold at this scale, and in one column that pushed the answer box off
+   * screen. The right column sticks so it stays beside the map however tall the room is.
+   */
   root.innerHTML = `
-    <p data-role="score"></p>
-    <div data-role="stage" data-zoom="out"
-         style="display:inline-block;overflow:hidden;cursor:zoom-in;line-height:0"
-      ><canvas data-role="map"></canvas></div>
-    <p data-role="guesses"></p>
-    <p>
-      <label>Which room is this?
-        <input name="answer" type="text" autocomplete="off" size="40">
-      </label>
-      <button data-action="guess">Answer</button>
-      <button data-action="skip">Skip (costs a guess, gives a hint)</button>
-      <button data-action="next" hidden>Next room</button>
-    </p>
-    <ul data-role="suggestions"></ul>
-    <p data-role="verdict"></p>
-    <dl data-role="hints"></dl>
-    <div data-role="reveal"></div>
+    <div data-role="layout" style="display:flex;gap:32px;align-items:flex-start">
+      <div data-role="left" style="flex:0 1 auto;min-width:0">
+        <h1>SM Map Rando Trainer</h1>
+        <p>Identify the room from its Map Rando map tiles.</p>
+        <p data-role="score"></p>
+        <div data-role="stage" data-zoom="out"
+             style="display:inline-block;overflow:hidden;cursor:zoom-in;line-height:0"
+          ><canvas data-role="map"></canvas></div>
+      </div>
+      <div data-role="right" style="flex:1 1 340px;position:sticky;top:16px">
+        <p data-role="guesses"></p>
+        <p>
+          <label>Which room is this?
+            <input name="answer" type="text" autocomplete="off" size="32">
+          </label>
+        </p>
+        <p>
+          <button data-action="guess">Answer</button>
+          <button data-action="skip">Skip (costs a guess, gives a hint)</button>
+          <button data-action="next" hidden>Next room</button>
+        </p>
+        <ul data-role="suggestions"></ul>
+        <p data-role="verdict"></p>
+        <dl data-role="hints"></dl>
+        <div data-role="reveal"></div>
+      </div>
+    </div>
   `;
 
   const el = <T extends Element>(sel: string): T => {

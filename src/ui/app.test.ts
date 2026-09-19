@@ -247,6 +247,42 @@ describe('moving on', () => {
   });
 });
 
+describe('the two columns', () => {
+  /**
+   * A tall shaft at this scale runs far past the fold, which pushed the answer box off
+   * screen entirely. The map gets its own column and the guessing sticks beside it.
+   */
+  it('puts the map and the heading on the left', () => {
+    mount();
+    const left = q<HTMLDivElement>('[data-role=left]');
+    expect(left.querySelector('h1')).toBeTruthy();
+    expect(left.querySelector('canvas')).toBeTruthy();
+    expect(left.querySelector('[data-role=score]')).toBeTruthy();
+  });
+
+  it('puts everything you act on on the right', () => {
+    mount();
+    const right = q<HTMLDivElement>('[data-role=right]');
+    expect(right.querySelector('input[name=answer]')).toBeTruthy();
+    expect(right.querySelector('button[data-action=guess]')).toBeTruthy();
+    expect(right.querySelector('button[data-action=skip]')).toBeTruthy();
+    expect(right.querySelector('[data-role=guesses]')).toBeTruthy();
+    expect(right.querySelector('[data-role=hints]')).toBeTruthy();
+    expect(right.querySelector('[data-role=reveal]')).toBeTruthy();
+  });
+
+  it('keeps the guessing column in view beside a room taller than the page', () => {
+    mount();
+    const right = q<HTMLDivElement>('[data-role=right]');
+    expect(right.style.position).toBe('sticky');
+  });
+
+  it('lays the two out side by side', () => {
+    mount();
+    expect(q<HTMLDivElement>('[data-role=layout]').style.display).toBe('flex');
+  });
+});
+
 describe('the stage', () => {
   /**
    * The dark ground is the page's, not a rectangle behind the map — a panel around the room
