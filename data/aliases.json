@@ -1,0 +1,7 @@
+{
+  "_note": "Hand-added room aliases, merged on top of the names sm-json-data supplies. This is where accepted suggestions from the alias-suggestion issue queue land.",
+  "aliases": {
+    "Statues Room": ["G4"],
+    "Statues Hallway": ["G4 Hallway"]
+  }
+}

@@ -176,6 +176,18 @@ export function deriveAliases(canonical: string, smJsonName: string | undefined)
   return [smJsonName];
 }
 
+/** Names the room also answers to, without repeats and never its own name. */
+function mergeAliases(name: string, fromSmJson: string[], curated: string[]): string[] {
+  const seen = new Set([name.toLowerCase()]);
+  const out: string[] = [];
+  for (const alias of [...fromSmJson, ...curated]) {
+    if (seen.has(alias.toLowerCase())) continue;
+    seen.add(alias.toLowerCase());
+    out.push(alias);
+  }
+  return out;
+}
+
 export function deriveOneWay(geo: RawGeoRoom): OneWay | null {
   if (geo.parts.length <= 1) return null;
   return {
@@ -221,6 +233,7 @@ export function buildRoom(
   geo: RawGeoRoom,
   aliases: string[] = [],
   extra: SmJsonRoom = {},
+  curated: string[] = [],
 ): Room {
   if (rawTile.roomId !== geo.room_id) {
     throw new Error(
@@ -242,7 +255,7 @@ export function buildRoom(
   return {
     id: geo.room_id,
     name: rawTile.roomName,
-    aliases,
+    aliases: mergeAliases(rawTile.roomName, aliases, curated),
     area: areaFromIndex(geo.area),
     width,
     height,
@@ -269,6 +282,7 @@ export function buildAllRooms(
   rawGeo: RawGeoRoom[],
   smJson: Record<string, SmJsonRoom> = {},
   vanillaMap?: VanillaMap,
+  curatedAliases: Record<string, string[]> = {},
 ): Room[] {
   const geoById = new Map(rawGeo.map((g) => [g.room_id, g]));
   if (geoById.size !== rawGeo.length) throw new Error('room_geometry contains duplicate room ids');
@@ -286,8 +300,14 @@ export function buildAllRooms(
         .map((id) => canonicalName.get(id))
         .filter((name): name is string => name !== undefined)
         .sort(),
-    });
+    }, curatedAliases[t.roomName] ?? []);
   });
+
+  // A curated alias keyed by a name no room has would otherwise vanish without a word.
+  const names = new Set(rawTiles.map((t) => t.roomName));
+  for (const key of Object.keys(curatedAliases)) {
+    if (!names.has(key)) throw new Error(`Curated alias for unknown room ${JSON.stringify(key)}`);
+  }
 
   if (rooms.length !== rawGeo.length) {
     throw new Error(`Room count mismatch: ${rooms.length} tile records, ${rawGeo.length} geometry`);

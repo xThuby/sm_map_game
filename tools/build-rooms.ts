@@ -42,7 +42,11 @@ function main(): void {
     readFileSync(resolve(rawDir, 'vanilla_map.json'), 'utf8'),
   ) as VanillaMap;
 
-  const rooms: Room[] = buildAllRooms(tiles.rooms, geo, smJson, vanillaMap);
+  const curated = JSON.parse(
+    readFileSync(resolve(repoRoot, 'data/aliases.json'), 'utf8'),
+  ) as { aliases: Record<string, string[]> };
+
+  const rooms: Room[] = buildAllRooms(tiles.rooms, geo, smJson, vanillaMap, curated.aliases);
 
   assert(rooms.length === EXPECTED_ROOMS, `expected ${EXPECTED_ROOMS} rooms, got ${rooms.length}`);
   const tileCount = rooms.reduce((n, r) => n + r.tiles.length, 0);

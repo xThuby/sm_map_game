@@ -4,23 +4,21 @@ import { equivalenceGroup, loadRooms } from '../rooms';
 import type { RenderSettings, Room } from '../types';
 
 /**
- * Four guesses, each spent one costing you the next hint. Modelled on the daily
+ * Five guesses, each spent one costing you the next hint. Modelled on the daily
  * guess-the-thing games: skipping buys a hint rather than abandoning the room.
+ *
+ * Four hints over five guesses means the last hint is on screen for one final guess, rather
+ * than arriving with the answer where it could not be acted on.
  */
-export const MAX_GUESSES = 4;
+export const MAX_GUESSES = 5;
 
 export type HintKind = 'area' | 'enemies' | 'neighbour' | 'diagram';
 
 /** Least to most generous. The diagram gives the room away, so it comes last. */
 export const HINT_ORDER: HintKind[] = ['area', 'enemies', 'neighbour', 'diagram'];
 
-/**
- * How many hints are showing once this many guesses have been spent.
- *
- * The third spent guess reveals two, so the room diagram is on screen while the player makes
- * their final guess rather than arriving with the answer, where it could not be acted on.
- */
-const HINTS_AFTER: number[] = [0, 1, 2, HINT_ORDER.length, HINT_ORDER.length];
+/** How many hints are showing once this many guesses have been spent: one each. */
+const HINTS_AFTER: number[] = [0, 1, 2, 3, 4, HINT_ORDER.length];
 
 const CDN = 'https://cdn.jsdelivr.net/gh/vg-json-data/sm-json-data';
 /** Pinned so the URL is immutable and the CDN can cache it indefinitely. */

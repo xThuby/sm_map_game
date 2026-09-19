@@ -16,7 +16,10 @@ const rawTiles = readRaw<{ rooms: RawTileRoom[] }>('map_tiles.json').rooms;
 const rawGeo = readRaw<RawGeoRoom[]>('room_geometry.json');
 const smJson = readRaw<Record<string, { name?: string }>>('sm_json_rooms.json');
 const vanillaMap = readRaw<VanillaMap>('vanilla_map.json');
-const rooms: Room[] = buildAllRooms(rawTiles, rawGeo, smJson, vanillaMap);
+const curated = JSON.parse(
+  readFileSync(resolve(repoRoot, 'data/aliases.json'), 'utf8'),
+) as { aliases: Record<string, string[]> };
+const rooms: Room[] = buildAllRooms(rawTiles, rawGeo, smJson, vanillaMap, curated.aliases);
 
 const byName = new Map(rooms.map((r) => [r.name, r]));
 const tally = <T>(xs: T[]): Record<string, number> => {
@@ -162,8 +165,8 @@ describe('corpus: item markers', () => {
 });
 
 describe('corpus: aliases', () => {
-  it('gives 31 rooms a name from sm-json-data that the map data does not use', () => {
-    expect(rooms.filter((r) => r.aliases.length > 0)).toHaveLength(31);
+  it('gives 33 rooms at least one other name', () => {
+    expect(rooms.filter((r) => r.aliases.length > 0)).toHaveLength(33);
   });
 
   it('has an sm-json-data name for every one of the 253 rooms', () => {
@@ -192,10 +195,15 @@ describe('corpus: aliases', () => {
     }
   });
 
-  it('offers 284 distinct names across all rooms', () => {
+  it('accepts the hand-added names too', () => {
+    expect(byName.get('Statues Room')?.aliases).toContain('G4');
+    expect(byName.get('Statues Hallway')?.aliases).toContain('G4 Hallway');
+  });
+
+  it('offers 286 distinct names across all rooms', () => {
     const all = rooms.flatMap((r) => [r.name, ...r.aliases]);
-    expect(new Set(all).size).toBe(284);
-    expect(all).toHaveLength(284);
+    expect(new Set(all).size).toBe(286);
+    expect(all).toHaveLength(286);
   });
 });
 

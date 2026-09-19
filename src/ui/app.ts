@@ -20,9 +20,6 @@ export interface App {
 
 const SUGGESTION_LIMIT = 6;
 
-/** How far a click magnifies the map. */
-export const ZOOM_FACTOR = 5;
-
 /** Alias suggestions are collected as GitHub issues; the site itself is static. */
 export const ALIAS_ISSUE_BASE = 'https://github.com/xThuby/sm_map_game/issues/new';
 
@@ -68,8 +65,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
         <h1>SM Map Rando Trainer</h1>
         <p>Identify the room from its Map Rando map tiles.</p>
         <p data-role="score"></p>
-        <div data-role="stage" data-zoom="out"
-             style="display:inline-block;overflow:hidden;cursor:zoom-in;line-height:0"
+        <div data-role="stage" style="display:inline-block;line-height:0"
           ><canvas data-role="map"></canvas></div>
       </div>
       <div data-role="right" style="flex:1 1 340px;position:sticky;top:16px">
@@ -113,6 +109,16 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
 
   const topSuggestion = () => autocomplete(input.value, index, 1)[0] ?? null;
 
+  /**
+   * What has been typed for this room, newest last, so the arrows can walk back through it.
+   * `historyAt` is the entry currently shown; one past the end means the box is the player's
+   * own, and the arrows leave the caret alone.
+   */
+  let history: string[] = [];
+  let historyAt = 0;
+  /** Enter on an empty box is as likely a stray keypress as a decision, so it asks first. */
+  let skipArmed = false;
+
   /** Each room is drawn as large as it will go without running off the page. */
   function drawRoom(): void {
     const room = session.current();
@@ -120,33 +126,27 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   }
 
   /**
-   * Click to magnify, move the pointer to pan, click again to stop. The stage keeps its size
-   * and clips, so the enlarged map slides behind a fixed window rather than pushing the page
-   * around. Panning works by moving the transform origin to the point under the pointer,
-   * which keeps whatever is under the cursor roughly where it was.
+   * The diagram hint stands in for the map at exactly its size, rather than appearing beside
+   * it: it is the same room, so showing both invites comparing two pictures of one thing.
    */
-  let zoomed = false;
-
-  function panTo(event: MouseEvent): void {
-    if (!zoomed) return;
-    const box = stage.getBoundingClientRect();
-    const x = box.width > 0 ? ((event.clientX - box.left) / box.width) * 100 : 50;
-    const y = box.height > 0 ? ((event.clientY - box.top) / box.height) * 100 : 50;
-    const clamp = (n: number) => Math.min(Math.max(n, 0), 100);
-    canvas.style.transformOrigin = `${clamp(x)}% ${clamp(y)}%`;
-  }
-
-  function setZoom(next: boolean, event?: MouseEvent): void {
-    zoomed = next;
-    stage.dataset['zoom'] = next ? 'in' : 'out';
-    stage.style.cursor = next ? 'zoom-out' : 'zoom-in';
-    canvas.style.transform = next ? `scale(${ZOOM_FACTOR})` : '';
-    if (next) {
-      if (event) panTo(event);
-      else canvas.style.transformOrigin = '50% 50%';
-    } else {
-      canvas.style.transformOrigin = '';
+  function drawStage(): void {
+    const diagram = session.hints().find((h) => h.kind === 'diagram');
+    const existing = stage.querySelector('img[data-role=diagram]');
+    if (!diagram?.imageUrl) {
+      existing?.remove();
+      canvas.hidden = false;
+      return;
     }
+    canvas.hidden = true;
+    if (existing) return;
+    const img = document.createElement('img');
+    img.dataset['role'] = 'diagram';
+    img.src = diagram.imageUrl;
+    img.alt = 'The room as it looks in game';
+    img.width = canvas.width;
+    img.height = canvas.height;
+    img.style.objectFit = 'contain';
+    stage.append(img);
   }
 
   function drawStatus(): void {
@@ -167,9 +167,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   function drawHints(): void {
     hintList.innerHTML = session.hints().map((h: Hint) => `
       <dt>${h.label}</dt>
-      <dd>${h.imageUrl
-        ? `<img data-role="diagram" src="${h.imageUrl}" alt="${h.kind}" loading="lazy" width="480">`
-        : h.text}</dd>`).join('');
+      <dd>${h.imageUrl ? 'Shown in place of the map.' : h.text}</dd>`).join('');
   }
 
   function drawSuggestions(): void {
@@ -212,16 +210,55 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   }
 
   function redraw(): void {
+    drawStage();
     drawStatus();
     drawHints();
     drawSuggestions();
     drawReveal();
   }
 
+  function standDown(): void {
+    if (!skipArmed) return;
+    skipArmed = false;
+    verdict.textContent = '';
+  }
+
+  function advance(): void {
+    session.next();
+    input.value = '';
+    history = [];
+    historyAt = 0;
+    standDown();
+    verdict.textContent = '';
+    drawRoom();
+    redraw();
+    input.focus();
+  }
+
+  /**
+   * Enter on an empty box offers to skip, asking once first: it is as likely a stray
+   * keypress as a decision. The Answer button does not, because a button labelled Answer
+   * spending a guess on a hint would be a surprise.
+   */
+  function submitEmpty(): void {
+    if (!skipArmed) {
+      skipArmed = true;
+      verdict.textContent = 'Press Enter again to skip and take a hint.';
+      return;
+    }
+    skipArmed = false;
+    verdict.textContent = '';
+    session.skip();
+    redraw();
+  }
+
   function submit(): void {
     if (session.state() !== 'guessing') return;
-    // An empty box is not an attempt at anything; say nothing rather than scolding.
     if (input.value.trim() === '') return;
+    standDown();
+
+    history.push(input.value);
+    historyAt = history.length;
     const grade = session.guess(input.value);
 
     if (!grade.recognised) {
@@ -235,6 +272,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     } else {
       verdict.textContent = 'Incorrect.';
     }
+    input.value = '';
     redraw();
   }
 
@@ -245,26 +283,48 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     verdict.textContent = '';
     redraw();
   });
-  nextButton.addEventListener('click', () => {
-    session.next();
-    input.value = '';
-    verdict.textContent = '';
-    setZoom(false);
-    drawRoom();
-    redraw();
-    input.focus();
+  nextButton.addEventListener('click', advance);
+  input.addEventListener('input', () => {
+    standDown();
+    // Typing makes the box the player's own again, so the arrows go back to moving the caret.
+    historyAt = history.length;
+    drawSuggestions();
   });
-  stage.addEventListener('click', (event) => setZoom(!zoomed, event));
-  stage.addEventListener('mousemove', panTo);
-  input.addEventListener('input', drawSuggestions);
+  input.addEventListener('blur', standDown);
+
+  /** True while the box still holds exactly what history put there, untouched. */
+  const browsingHistory = () =>
+    input.value === '' || input.value === history[historyAt];
+
+  function showHistory(at: number): void {
+    historyAt = Math.min(Math.max(at, 0), history.length);
+    input.value = history[historyAt] ?? '';
+    drawSuggestions();
+  }
+
   input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') { submit(); return; }
+    if (event.key === 'Escape') { standDown(); return; }
+
+    if (event.key === 'Enter') {
+      if (session.state() !== 'guessing') advance();
+      else if (input.value.trim() === '') submitEmpty();
+      else submit();
+      return;
+    }
+
     if (event.key === 'Tab') {
       const top = topSuggestion();
       if (!top) return;
       event.preventDefault();
       input.value = top.name;
       drawSuggestions();
+      return;
+    }
+
+    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && history.length > 0) {
+      if (!browsingHistory()) return;
+      event.preventDefault();
+      showHistory(historyAt + (event.key === 'ArrowLeft' ? -1 : 1));
     }
   });
 

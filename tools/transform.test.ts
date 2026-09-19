@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   areaFromIndex, boundingBox, normalizeTile, deriveItemCount, deriveHasHiddenItem,
   deriveUtilities, deriveHasElevator, deriveOneWay, deriveAliases, deriveNeighbours, buildRoom,
+  buildAllRooms,
 } from './transform';
 import type { RawGeoRoom, RawMapTile, RawTileRoom, VanillaDoor } from './transform';
 import type { Tile } from '../src/types';
@@ -272,5 +273,34 @@ describe('buildRoom extras', () => {
     expect(r.enemies).toEqual([]);
     expect(r.neighbours).toEqual([]);
     expect(r.diagram).toBeNull();
+  });
+});
+
+describe('hand-added aliases', () => {
+  it('merges a curated alias alongside the sm-json-data one', () => {
+    const r = buildRoom(rawTiles(), rawGeo(), ['From sm-json'], {}, ['Curated']);
+    expect(r.aliases).toEqual(['From sm-json', 'Curated']);
+  });
+
+  it('does not repeat a name the room already answers to', () => {
+    const r = buildRoom(rawTiles(), rawGeo(), ['The Jail'], {}, ['The Jail', 'G4']);
+    expect(r.aliases).toEqual(['The Jail', 'G4']);
+  });
+
+  it('never adds the room\'s own name as an alias', () => {
+    const r = buildRoom(rawTiles(), rawGeo(), [], {}, ['The Moat']);
+    expect(r.aliases).toEqual([]);
+  });
+});
+
+describe('curated alias keys', () => {
+  it('rejects an alias keyed by a room that does not exist', () => {
+    expect(() => buildAllRooms([rawTiles()], [rawGeo()], {}, undefined, { 'Nowhere Room': ['X'] }))
+      .toThrow(/Nowhere Room/);
+  });
+
+  it('accepts one keyed by a room that does', () => {
+    const [room] = buildAllRooms([rawTiles()], [rawGeo()], {}, undefined, { 'The Moat': ['Puddle'] });
+    expect(room?.aliases).toEqual(['Puddle']);
   });
 });

@@ -52,8 +52,13 @@ describe('levenshtein', () => {
 
 describe('buildNameIndex', () => {
   it('indexes every canonical name and every alias', () => {
-    expect(index.entries).toHaveLength(284);
-    expect(index.entries.filter((e) => e.isAlias)).toHaveLength(31);
+    expect(index.entries).toHaveLength(286);
+    expect(index.entries.filter((e) => e.isAlias)).toHaveLength(33);
+  });
+
+  it('indexes the hand-added names', () => {
+    expect(resolveName('G4', index)?.name).toBe('Statues Room');
+    expect(resolveName('G4 Hallway', index)?.name).toBe('Statues Hallway');
   });
 
   it('maps each normalized key to exactly one room', () => {

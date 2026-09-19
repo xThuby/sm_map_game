@@ -63,15 +63,25 @@ describe('guesses', () => {
     expect(s.hints().map((h) => h.kind)).toEqual(['area', 'enemies']);
   });
 
+  it('reveals exactly one hint per spent guess', () => {
+    const s = only('Volcano Room');
+    for (const [i, kind] of HINT_ORDER.entries()) {
+      s.skip();
+      expect(s.hints().map((h) => h.kind)).toEqual(HINT_ORDER.slice(0, i + 1));
+      expect(kind).toBe(HINT_ORDER[i]);
+    }
+  });
+
   /**
    * The diagram has to be on screen while the last guess is made, not delivered alongside
-   * the answer, so the third spent guess reveals both remaining hints.
+   * the answer, so it lands on the fourth of five guesses.
    */
-  it('has every hint showing before the final guess', () => {
+  it('has every hint showing with one guess still in hand', () => {
     const s = only('Volcano Room');
     for (let i = 0; i < MAX_GUESSES - 1; i += 1) s.skip();
     expect(s.guessesLeft()).toBe(1);
     expect(s.hints().map((h) => h.kind)).toEqual(HINT_ORDER);
+    expect(s.state()).toBe('guessing');
   });
 
   it('is lost once every guess is spent', () => {
