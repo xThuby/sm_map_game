@@ -1,4 +1,4 @@
-import { MAX_GUESSES } from './session';
+import { MAX_GUESSES } from './costs';
 
 export const STORAGE_KEY = 'sm-map-game/stats/v1';
 

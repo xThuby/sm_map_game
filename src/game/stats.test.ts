@@ -4,7 +4,7 @@ import {
   averagePoints, loadStats, saveStats, STORAGE_KEY,
 } from './stats';
 import type { Stats } from './stats';
-import { MAX_GUESSES } from './session';
+import { MAX_GUESSES } from './costs';
 
 const solve = (stats: Stats, name: string, guesses: number, points = 100) => recordRoom(
   stats, { roomId: name.length, roomName: name, solved: true, guessesUsed: guesses, points },

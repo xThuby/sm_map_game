@@ -8,14 +8,14 @@ Live: https://xthuby.github.io/sm_map_game/
 
 Each room starts at 100 points, and everything comes out of that one purse. Hints are on
 sale from the start rather than handed out on a schedule — the original map area costs 5, the
-enemy list 10, the connecting rooms 15, the room graphics 20, and the name 25 for one random
+enemy list 5, the connecting rooms 15, the room graphics 20, and the name 25 for one random
 letter, twice. The room's name is masked from the start, so its shape is free. The lot comes
-to exactly 100: every hint is always within reach, and taking them all leaves the room worth
-nothing when you name it. Buying empties a room but never ends one.
+to 95: every hint is always within reach, and naming a room after taking them all still pays
+5. Buying empties a room but never ends one — only a wrong answer can do that.
 
 A wrong answer costs 10, and throws in the area hint the first time and the enemy list the
-second — 10 for a hint that costs 5 to ask for, because it is a consolation for the guess
-rather than a cheaper way to the hint. After that a wrong answer just costs the 10. There is
+second — 10 for a hint that costs 5 to ask for either way, because it is a consolation for
+the guess rather than a cheaper way to the hint. After that a wrong answer just costs the 10. There is
 no guess allowance: you keep going until you name the room or a wrong answer takes the last
 of the points, which is ten of them if you buy nothing. A room you never get is worth
 nothing, whatever you spent on it. A room already guessed is refused rather than charged for.
@@ -28,6 +28,11 @@ which show each room as it was and what the round stood at then.
 
 A round is six rooms; after each one you get a summary of how it went — points won, guesses
 taken, rooms going worst — against your running stats, which are kept in the browser.
+
+Every price lives in [src/game/costs.ts](src/game/costs.ts) — what a room is worth, what
+each hint costs, what a wrong answer costs, and which hints a wrong answer throws in. Tweak
+them there; `src/game/costs.test.ts` guards the two things the balance depends on, so a
+change that breaks one says so.
 
 There is a par review page at `/par.html` — how many guesses each room ought to take, with the
 reasoning, for checking those numbers look sensible. It is not linked from the game.

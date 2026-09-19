@@ -2,54 +2,15 @@ import { buildNameIndex, resolveName, suggestName } from './matching';
 import type { NameIndex } from './matching';
 import { equivalenceGroup, loadRooms } from '../rooms';
 import type { RenderSettings, Room } from '../types';
+import {
+  AUTO_HINTS, HINT_COSTS, HINT_ORDER, NAME_LETTERS, STARTING_POINTS, WRONG_GUESS_COST,
+} from './costs';
+import type { HintKind } from './costs';
+
+export type { HintKind } from './costs';
 
 /** How many rooms make a round, after which the player is shown how they did. */
 export const ROUND_LENGTH = 6;
-
-/** What a room is worth if it is named without buying a thing. */
-export const STARTING_POINTS = 100;
-
-/**
- * What a wrong answer costs. There is no guess allowance any more — guesses come out of the
- * same purse as hints, so being wrong is priced rather than rationed.
- */
-export const WRONG_GUESS_COST = 10;
-
-/** The most guesses a room can take: any more and the points are gone. */
-export const MAX_GUESSES = STARTING_POINTS / WRONG_GUESS_COST;
-
-export type HintKind = 'area' | 'enemies' | 'neighbour' | 'diagram' | 'name';
-
-/** Least to most generous. The name itself is the last thing worth giving away. */
-export const HINT_ORDER: HintKind[] = ['area', 'enemies', 'neighbour', 'diagram', 'name'];
-
-/** How many letters of each word the name hint will give away, one purchase each. */
-export const NAME_LETTERS = 2;
-
-/**
- * What each hint costs out of the room's hundred points — for the name, what each letter of
- * it costs, so the whole name comes to 50.
- *
- * Everything together comes to exactly 100. Every hint is always within reach, but a player
- * who takes them all has nothing left: the room is still there to be named, and naming it is
- * worth nothing. Buying does not end a room, though — only a wrong answer can do that.
- */
-export const HINT_COSTS: Record<HintKind, number> = {
-  area: 5,
-  enemies: 10,
-  neighbour: 15,
-  diagram: 20,
-  name: 25,
-};
-
-/**
- * What a wrong answer throws in, in order — the first wrong answer gives the first of these
- * that is not already showing, the second the next, and after that the ten buys nothing.
- *
- * Area costs 5 to ask for and 10 to be given, which is the right way round: the hint is a
- * consolation for the guess, not a cheaper route to the hint.
- */
-export const AUTO_HINTS: HintKind[] = ['area', 'enemies'];
 
 const HINT_LABELS: Record<HintKind, string> = {
   area: 'Original map area',
@@ -247,9 +208,10 @@ export function createSession(options: SessionOptions): Session {
   /** Points gone: hints bought plus ten for every wrong answer. */
   let spentPoints = 0;
   /**
-   * Set when a wrong answer takes the last of the points. Buying never ends a room, only
-   * empties it: the hints come to exactly a hundred, and spending the lot on them should
-   * leave a room worth nothing rather than a room already lost.
+   * Set when a wrong answer takes the last of the points. Only a wrong answer ever does:
+   * buying empties a room, it does not end one. The hints come to less than a room is worth,
+   * so this cannot be reached by buying at today's prices — but pricing is a number in a
+   * table, and the last purchase should never be a trap if one of them changes.
    */
   let bust = false;
   /** The rooms named and found wrong, so they can be shown rather than tried again. */

@@ -3,10 +3,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mountApp, ALIAS_ISSUE_BASE, plural } from './app';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS, MAX_TILE_SIZE, VIEWPORT } from '../render/renderer';
+import { ROUND_LENGTH } from '../game/session';
 import {
-  MAX_GUESSES, ROUND_LENGTH, STARTING_POINTS, HINT_COSTS, HINT_ORDER, NAME_LETTERS,
-  WRONG_GUESS_COST,
-} from '../game/session';
+  MAX_GUESSES, STARTING_POINTS, HINT_COSTS, HINT_ORDER, NAME_LETTERS, WRONG_GUESS_COST,
+} from '../game/costs';
 import type { Renderer } from '../render/renderer';
 import type { App } from './app';
 
@@ -1063,20 +1063,19 @@ describe('buying hints', () => {
       .toContain(String(STARTING_POINTS - HINT_COSTS.area - HINT_COSTS.enemies));
   });
 
-  /** Nothing is ever priced out of reach; the lot comes to exactly what a room is worth. */
-  it('lets every hint be bought on one room, leaving it worth nothing', () => {
+  /** Buying the lot still leaves something to win, so nothing is ever priced out of reach. */
+  it('lets every hint be bought on one room, and still pays for naming it', () => {
     const app = only('Volcano Room');
     for (const kind of HINT_ORDER) {
       expect(buyButton(kind)?.disabled, kind).toBe(false);
       buy(kind);
     }
     for (let i = 1; i < NAME_LETTERS; i += 1) buy('name');
-    expect(q('[data-role=points]').textContent).toMatch(/\b0 points\b/);
-    // Spending the lot empties a room; it does not end one.
-    expect(app.session.state()).toBe('guessing');
+    expect(q('[data-role=points]').textContent).toContain('5 points');
     type('Volcano Room');
     click('button[data-action=guess]');
     expect(app.session.state()).toBe('solved');
+    expect(q('[data-role=points]').textContent).toContain('5 points');
   });
 
   /** The shared purse: buy the lot and a single wrong answer is more than you have. */

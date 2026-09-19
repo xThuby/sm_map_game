@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { createSession, shuffleBag, nameHint, ROUND_LENGTH } from './session';
 import {
-  createSession, shuffleBag, MAX_GUESSES, HINT_ORDER, HINT_COSTS, STARTING_POINTS,
-  NAME_LETTERS, WRONG_GUESS_COST, nameHint, ROUND_LENGTH,
-} from './session';
+  MAX_GUESSES, HINT_ORDER, HINT_COSTS, STARTING_POINTS, NAME_LETTERS, WRONG_GUESS_COST,
+} from './costs';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS } from '../render/renderer';
 
@@ -136,7 +136,7 @@ describe('guesses', () => {
     const s = only('Volcano Room');
     for (const kind of HINT_ORDER) s.buyHint(kind);
     for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
-    expect(s.points()).toBe(0);
+    expect(s.points()).toBe(5);
     s.guess('Landing Site');
     expect(s.state()).toBe('lost');
   });
@@ -267,33 +267,34 @@ describe('guesses', () => {
 describe('buying hints', () => {
   /** The name is priced per letter, so it is the only one that costs twice. */
   it('prices the hints as advertised', () => {
-    expect(HINT_COSTS).toEqual({ area: 5, enemies: 10, neighbour: 15, diagram: 20, name: 25 });
+    expect(HINT_COSTS).toEqual({ area: 5, enemies: 5, neighbour: 15, diagram: 20, name: 25 });
   });
 
   /**
-   * Every hint is always within reach — the lot comes to exactly a hundred. What it costs to
-   * take them all is the room itself: it is still there to name, and worth nothing when you
-   * do. Buying does not end a room, though, or the last purchase would be a trap.
+   * A player who buys the lot still walks away with something for naming the room. That is
+   * the whole point of the prices: every hint is always within reach, and the cost of taking
+   * them all is that the room is worth 5 instead of 100 — not that it is worth nothing.
    */
-  it('leaves nothing at all when every hint is bought, and the room still in play', () => {
+  it('leaves a little over when every hint is bought', () => {
     const s = only('Volcano Room');
     for (const kind of HINT_ORDER) {
       expect(s.offers().find((o) => o.kind === kind)?.affordable, kind).toBe(true);
       s.buyHint(kind);
     }
     for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
-    expect(s.points()).toBe(0);
+    expect(s.points()).toBe(5);
     expect(s.state()).toBe('guessing');
     expect(s.offers().every((o) => o.bought)).toBe(true);
   });
 
-  it('still lets the room be named for nothing after that', () => {
+  /** Buying empties a room; it never ends one. Only a wrong answer can do that. */
+  it('is still in play after everything the hints can take', () => {
     const s = only('Volcano Room');
     for (const kind of HINT_ORDER) s.buyHint(kind);
     for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
     expect(s.guess('Volcano Room').correct).toBe(true);
     expect(s.state()).toBe('solved');
-    expect(s.points()).toBe(0);
+    expect(s.points()).toBe(5);
   });
 
   it('offers every hint from the start, priced and unbought', () => {
