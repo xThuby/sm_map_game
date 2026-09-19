@@ -262,7 +262,11 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
 
   function drawStatus(): void {
     // Where you are in the round. How it went is the summary's job.
-    const place = Math.min(session.roundResults().length + 1, ROUND_LENGTH);
+    //
+    // A round's results count the room in play the moment it is finished with, which is not
+    // the same as having moved off it: you are still on room one until you press Next.
+    const done = session.roundResults().length;
+    const place = session.state() === 'guessing' ? done + 1 : done;
     score.textContent = `Room ${place} of ${ROUND_LENGTH}`;
     par.textContent = `Par ${parByRoom.get(viewedRoom().id) ?? 1}`;
 

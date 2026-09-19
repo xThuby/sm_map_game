@@ -224,6 +224,24 @@ describe('moving on', () => {
     expect(q('[data-role=score]').textContent).toMatch(/Room 3 of 6/);
   });
 
+  /** The room stays the one you are on until you actually move off it. */
+  it('does not count you onto the next room before you go there', () => {
+    const app = mount();
+    expect(q('[data-role=score]').textContent).toMatch(/Room 1 of 6/);
+    type(app.session.current().name);
+    click('button[data-action=guess]');
+    expect(q('[data-role=score]').textContent).toMatch(/Room 1 of 6/);
+    click('button[data-action=next]');
+    expect(q('[data-role=score]').textContent).toMatch(/Room 2 of 6/);
+  });
+
+  it('stays on the last room of the round once the round is over', () => {
+    mount();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { giveUp(); click('button[data-action=next]'); }
+    giveUp();
+    expect(q('[data-role=score]').textContent).toMatch(/Room 6 of 6/);
+  });
+
   it('says nothing about guesses used up there', () => {
     mount();
     expect(q('[data-role=score]').textContent).not.toMatch(/guess/i);
