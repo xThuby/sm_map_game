@@ -123,6 +123,27 @@ function tileLiquidLevel(room: Room, tile: Tile): number | null {
 const ITEM_INTERIORS = new Set(['item', 'doubleItem', 'hiddenItem']);
 
 /**
+ * Interiors Map Rando never actually draws. render_tile panics on both, because the
+ * randomizer replaces them per seed with a marker chosen from the item that landed there and
+ * the item_markers setting — 4-Tiered, on the current season's preset.
+ *
+ * Which tier a seed shows cannot be known without that seed. An item's position identifies a
+ * room where its marker shape does not, so every item gets the plain marker rather than the
+ * vanilla artwork, which no player would ever see.
+ */
+const SUBSTITUTED: Record<string, string> = {
+  doubleItem: 'Item',
+  hiddenItem: 'Item',
+};
+
+/**
+ * Special tiles that are not part of the room. Map Rando paints the background lattice
+ * through a black tile, so its artwork is dots in the room's fill colour; with no lattice
+ * behind it those read as a stray mark floating beside the room.
+ */
+const NOT_ROOM = new Set(['black']);
+
+/**
  * Tiles whose interior icon fills the whole 8x8 including its own border. render_tile skips
  * the tile's edges for these, so the icon is not drawn over.
  */
@@ -172,8 +193,14 @@ export function renderTileBitmap(room: Room, tile: Tile, settings: RenderSetting
     }
   }
 
+  if (tile.special && NOT_ROOM.has(tile.special)) {
+    return data.map((row) => row.map(() => BACKDROP));
+  }
+
   const showInterior = !(settings.items === 'hidden' && ITEM_INTERIORS.has(tile.interior));
-  if (showInterior) stamp(data, variantName(tile.interior), heated);
+  if (showInterior) {
+    stamp(data, SUBSTITUTED[tile.interior] ?? variantName(tile.interior), heated);
+  }
   if (tile.special) stamp(data, variantName(tile.special), heated);
 
   if (!(showInterior && ICON_INTERIORS.has(tile.interior))) {

@@ -110,15 +110,28 @@ describe('renderTileBitmap: interiors', () => {
     expect(b[2]?.[2]).toBe(1);
   });
 
-  it('draws a double item as four dots on the diagonal', () => {
-    const b = bitmapOf({ interior: 'doubleItem' });
-    expect([b[2]?.[2], b[3]?.[3], b[4]?.[4], b[5]?.[5]]).toEqual([13, 13, 13, 13]);
+  /**
+   * render_tile panics on doubleItem and hiddenItem: Map Rando substitutes a marker per seed
+   * from the item that landed there and the item_markers setting. Which tier that is cannot
+   * be known without a seed, so every item gets the plain marker. Drawing the vanilla
+   * diagonals instead would show players something no seed ever shows them.
+   */
+  it('draws a double item exactly as a plain one', () => {
+    expect(bitmapOf({ interior: 'doubleItem' })).toEqual(bitmapOf({ interior: 'item' }));
   });
 
-  it('draws a hidden item as two dots on the diagonal', () => {
-    const b = bitmapOf({ interior: 'hiddenItem' });
-    expect([b[3]?.[3], b[4]?.[4]]).toEqual([13, 13]);
-    expect(b[2]?.[2]).toBe(1);
+  it('draws a hidden item exactly as a plain one', () => {
+    expect(bitmapOf({ interior: 'hiddenItem' })).toEqual(bitmapOf({ interior: 'item' }));
+  });
+
+  it('draws no diagonal anywhere in the game', () => {
+    for (const room of loadRooms()) {
+      for (const tile of room.tiles) {
+        const b = renderTileBitmap(room, tile, FULLY_VISIBLE);
+        // the vanilla double-item artwork put a marker pixel at 2,2; nothing else does
+        expect(b[2]?.[2], `${room.name}`).not.toBe(13);
+      }
+    }
   });
 
   it('draws nothing for an empty interior or an event', () => {

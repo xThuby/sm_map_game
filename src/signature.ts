@@ -50,10 +50,22 @@ export function resolveEdge(raw: RawEdge, settings: EdgeSettings): Edge {
 
 const ITEM_INTERIORS = new Set(['item', 'doubleItem', 'hiddenItem']);
 
-/** The interior a player actually sees. Item markers vanish when items are hidden. */
+/**
+ * The interior a player actually sees.
+ *
+ * Every item draws the same plain marker, because Map Rando substitutes doubleItem and
+ * hiddenItem per seed and the renderer follows suit. Markers vanish entirely when items are
+ * hidden.
+ */
 function resolveInterior(tile: Tile, settings: RenderSettings): string {
   if (settings.items === 'hidden' && ITEM_INTERIORS.has(tile.interior)) return 'empty';
-  return tile.interior;
+  return ITEM_INTERIORS.has(tile.interior) ? 'item' : tile.interior;
+}
+
+/** A black tile paints nothing, so it cannot tell two rooms apart. */
+function resolveSpecial(tile: Tile): string | null {
+  if (tile.special === 'black') return null;
+  return tile.special ?? null;
 }
 
 function liquidVisible(room: Room, settings: RenderSettings): boolean {
@@ -85,7 +97,7 @@ export function visualSignature(room: Room, settings: RenderSettings): string {
       t.x, t.y,
       edge(room, t, 'left'), edge(room, t, 'right'),
       edge(room, t, 'top'), edge(room, t, 'bottom'),
-      resolveInterior(t, settings), t.special ?? null,
+      resolveInterior(t, settings), resolveSpecial(t),
     ])
     .sort((a, b) => (a[1] as number) - (b[1] as number) || (a[0] as number) - (b[0] as number));
 

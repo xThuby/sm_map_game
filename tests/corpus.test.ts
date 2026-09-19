@@ -145,6 +145,22 @@ describe('corpus: derived room facts', () => {
   });
 });
 
+describe('corpus: item markers', () => {
+  /**
+   * Every item draws the same marker, because Map Rando substitutes doubleItem and
+   * hiddenItem per seed. Two rooms differing only in which kind of item tile they hold are
+   * therefore indistinguishable, and grading has to accept either.
+   */
+  it('cannot separate a double-item room from a plain one that matches otherwise', () => {
+    const billy = byName.get('Billy Mays Room')!;
+    const warehouse = byName.get('Warehouse Energy Tank Room')!;
+    expect(billy.tiles[0]?.interior).toBe('doubleItem');
+    expect(warehouse.tiles[0]?.interior).toBe('hiddenItem');
+    expect(visualSignature(billy, FULLY_VISIBLE))
+      .toBe(visualSignature(warehouse, FULLY_VISIBLE));
+  });
+});
+
 describe('corpus: aliases', () => {
   it('gives 31 rooms a name from sm-json-data that the map data does not use', () => {
     expect(rooms.filter((r) => r.aliases.length > 0)).toHaveLength(31);
@@ -231,14 +247,14 @@ describe('corpus: visual equivalence', () => {
    * whole justification for grading against an equivalence group rather than one name.
    */
   it.each([
-    ['vanilla',  'visible', false, 179, 21,  95],
-    ['vanilla',  'visible', true,  228, 21,  46],
-    ['vanilla',  'hidden',  false, 139, 20, 134],
-    ['vanilla',  'hidden',  true,  204, 28,  77],
-    ['enhanced', 'visible', false, 186, 23,  90],
-    ['enhanced', 'visible', true,  233, 17,  37],
-    ['enhanced', 'hidden',  false, 146, 22, 129],
-    ['enhanced', 'hidden',  true,  210, 25,  68],
+    ['vanilla',  'visible', false, 176, 21,  98],
+    ['vanilla',  'visible', true,  226, 21,  48],
+    ['vanilla',  'hidden',  false, 135, 21, 139],
+    ['vanilla',  'hidden',  true,  201, 29,  81],
+    ['enhanced', 'visible', false, 183, 23,  93],
+    ['enhanced', 'visible', true,  231, 17,  39],
+    ['enhanced', 'hidden',  false, 142, 23, 134],
+    ['enhanced', 'hidden',  true,  207, 26,  72],
   ] as const)(
     'walls=%s blueDoors=%s hazards=%s -> %i distinct, %i groups, %i rooms',
     (walls, blueDoors, hazards, distinct, groups, roomCount) => {
@@ -253,8 +269,8 @@ describe('corpus: visual equivalence', () => {
   );
 
   it('matches the named presets to the settings they stand for', () => {
-    expect(groupsFor(SHAPE_ONLY)).toEqual({ distinct: 186, groups: 23, rooms: 90 });
-    expect(groupsFor(FULLY_VISIBLE)).toEqual({ distinct: 233, groups: 17, rooms: 37 });
+    expect(groupsFor(SHAPE_ONLY)).toEqual({ distinct: 183, groups: 23, rooms: 93 });
+    expect(groupsFor(FULLY_VISIBLE)).toEqual({ distinct: 231, groups: 17, rooms: 39 });
   });
 
   /**
