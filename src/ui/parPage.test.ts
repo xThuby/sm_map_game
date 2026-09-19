@@ -114,3 +114,59 @@ describe('the par page', () => {
     expect(q('[data-role=summary]').textContent).toMatch(/par 2/i);
   });
 });
+
+describe('ordering', () => {
+  const shownNames = () => [...root.querySelectorAll('[data-role=room]')]
+    .map((el) => el.querySelector('strong')?.textContent ?? '');
+
+  /** Judging whether a par is fair means comparing a room against the ones it looks like. */
+  it('keeps every look-alike group together in one run', () => {
+    mount();
+    const names = shownNames();
+    for (const group of lookAlikeGroups(pool, DEFAULT_RENDER_SETTINGS)) {
+      const positions = group.rooms
+        .map((r) => names.indexOf(r.name))
+        .sort((a, b) => a - b);
+      expect(positions[0], group.label).toBeGreaterThanOrEqual(0);
+      expect(
+        (positions[positions.length - 1] as number) - (positions[0] as number),
+        group.label,
+      ).toBe(positions.length - 1);
+    }
+  });
+
+  it('puts the two Aqueduct Quicksand Rooms next to each other', () => {
+    mount();
+    const names = shownNames();
+    const east = names.indexOf('East Aqueduct Quicksand Room');
+    const west = names.indexOf('West Aqueduct Quicksand Room');
+    expect(east).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(east - west)).toBe(1);
+  });
+
+  it('heads each run with the group it belongs to', () => {
+    mount();
+    const headings = root.querySelectorAll('[data-role=group-heading]');
+    expect(headings).toHaveLength(lookAlikeGroups(pool, DEFAULT_RENDER_SETTINGS).length);
+  });
+
+  it('orders rooms within a group by par, hardest first', () => {
+    mount();
+    for (const section of root.querySelectorAll('[data-role=group-section]')) {
+      const pars = [...section.querySelectorAll('[data-role=room]')]
+        .map((el) => Number(el.getAttribute('data-par')));
+      expect(pars).toEqual([...pars].sort((a, b) => b - a));
+    }
+  });
+});
+
+describe('group headings', () => {
+  it('names a single par plainly and a spread as a range', () => {
+    mount();
+    const headings = [...root.querySelectorAll('[data-role=group-heading]')]
+      .map((h) => h.textContent ?? '');
+    expect(headings.some((h) => /par \d$/.test(h))).toBe(true);
+    expect(headings.some((h) => /par \d–\d$/.test(h))).toBe(true);
+    expect(headings.every((h) => !h.includes('and'))).toBe(true);
+  });
+});

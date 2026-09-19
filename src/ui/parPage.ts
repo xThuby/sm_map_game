@@ -1,4 +1,4 @@
-import { allPars, PAR_STEPS } from '../game/par';
+import { allPars } from '../game/par';
 import type { ParBreakdown } from '../game/par';
 import { visualSignature } from '../signature';
 import { fitTileSize } from '../render/renderer';
@@ -119,19 +119,41 @@ export function mountParPage(root: HTMLElement, options: ParPageOptions): void {
     .map(([par, n]) => `par ${par}: ${n} rooms`)
     .join(' · ');
 
+  const byRoom = new Map(entries.map((e) => [e.room.id, e]));
+
+  /**
+   * Rooms are laid out group by group, so a room always sits beside the ones it can be
+   * confused with. Judging whether a par is fair means weighing it against its neighbours,
+   * and sorting by par alone scattered them: the two Aqueduct Quicksand Rooms have different
+   * pars and ended up pages apart.
+   */
   function draw(): void {
     const key = select?.value ?? '';
-    const shown = key === ''
-      ? entries
-      : entries.filter((e) => visualSignature(e.room, settings) === key);
-    container!.replaceChildren(
-      ...shown
-        .sort((a, b) => b.par - a.par || a.room.name.localeCompare(b.room.name))
-        .map((e) => roomCard(e, settings, renderer)),
-    );
+    const shown = key === '' ? groups : groups.filter((g) => g.key === key);
+
+    container!.replaceChildren(...shown.map((group) => {
+      const section = document.createElement('section');
+      section.dataset['role'] = 'group-section';
+
+      const members = group.rooms
+        .map((r) => byRoom.get(r.id))
+        .filter((e): e is ParBreakdown => e !== undefined)
+        .sort((a, b) => b.par - a.par || a.room.name.localeCompare(b.room.name));
+
+      const heading = document.createElement('h2');
+      heading.dataset['role'] = 'group-heading';
+      heading.style.cssText = 'margin:28px 0 0;font-size:1rem;color:#9cf';
+      const pars = [...new Set(members.map((m) => m.par))].sort((a, b) => a - b);
+      const span = pars.length === 1
+        ? `par ${pars[0]}`
+        : `par ${pars[0]}–${pars[pars.length - 1]}`;
+      heading.textContent = `${group.rooms.length} rooms that look alike — ${span}`;
+
+      section.append(heading, ...members.map((e) => roomCard(e, settings, renderer)));
+      return section;
+    }));
   }
 
   select.addEventListener('change', draw);
   draw();
-  void PAR_STEPS;
 }
