@@ -5,6 +5,7 @@ import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS, MAX_TILE_SIZE, VIEWPORT } from '../render/renderer';
 import { MAX_GUESSES } from '../game/session';
 import type { Renderer } from '../render/renderer';
+import type { App } from './app';
 
 const noopRenderer: Renderer = { render() { /* jsdom has no canvas */ } };
 const rooms = loadRooms();
@@ -14,6 +15,9 @@ const seeded = () => {
 };
 
 let root: HTMLElement;
+/** Every mount, so each one's document listeners are torn down between tests. */
+const mounts: App[] = [];
+const track = (app: App): App => { mounts.push(app); return app; };
 const q = <T extends Element>(sel: string): T => {
   const el = root.querySelector<T>(sel);
   if (!el) throw new Error(`missing ${sel}`);
@@ -29,13 +33,16 @@ const type = (value: string) => {
 const mount = (pool = rooms) => {
   root = document.createElement('div');
   document.body.append(root);
-  return mountApp(root, {
+  return track(mountApp(root, {
     rooms: pool, settings: { ...TOURNAMENT_SETTINGS }, renderer: noopRenderer, random: seeded(),
-  });
+  }));
 };
 const only = (name: string) => mount(rooms.filter((r) => r.name === name));
 
-beforeEach(() => { document.body.innerHTML = ''; });
+beforeEach(() => {
+  for (const app of mounts.splice(0)) app.destroy();
+  document.body.innerHTML = '';
+});
 
 describe('plural', () => {
   it('uses -es after a sibilant', () => {
@@ -260,10 +267,10 @@ describe('fitting the room on screen', () => {
     const recorder: Renderer = { render(_c, _r, s) { sizes.push(s.tileSize); } };
     const root2 = document.createElement('div');
     document.body.append(root2);
-    mountApp(root2, {
+    track(mountApp(root2, {
       rooms: rooms.filter((r) => r.name === 'The Moat'),
       settings: { ...TOURNAMENT_SETTINGS }, renderer: recorder, random: seeded(),
-    });
+    }));
     expect(sizes[0]).toBe(MAX_TILE_SIZE);
   });
 
@@ -272,10 +279,10 @@ describe('fitting the room on screen', () => {
     const recorder: Renderer = { render(_c, _r, s) { sizes.push(s.tileSize); } };
     const root2 = document.createElement('div');
     document.body.append(root2);
-    mountApp(root2, {
+    track(mountApp(root2, {
       rooms: rooms.filter((r) => r.name === 'Green Brinstar Main Shaft'),
       settings: { ...TOURNAMENT_SETTINGS }, renderer: recorder, random: seeded(),
-    });
+    }));
     expect(sizes[0]).toBeLessThan(MAX_TILE_SIZE);
     expect((sizes[0] as number) * 12).toBeLessThanOrEqual(VIEWPORT.height);
   });
@@ -285,9 +292,9 @@ describe('fitting the room on screen', () => {
     const recorder: Renderer = { render(_c, _r, s) { sizes.push(s.tileSize); } };
     const root2 = document.createElement('div');
     document.body.append(root2);
-    mountApp(root2, {
+    track(mountApp(root2, {
       rooms, settings: { ...TOURNAMENT_SETTINGS }, renderer: recorder, random: seeded(),
-    });
+    }));
     for (let i = 0; i < 12; i += 1) {
       for (let k = 0; k < MAX_GUESSES; k += 1) {
         root2.querySelector<HTMLButtonElement>('button[data-action=skip]')!.click();
@@ -412,63 +419,6 @@ describe('the keyboard', () => {
     });
   });
 
-  describe('guess history', () => {
-    const guessTwice = () => {
-      only('Volcano Room');
-      type('Landing Site');
-      press('Enter');
-      type('The Moat');
-      press('Enter');
-    };
-
-    it('walks back through what you already tried', () => {
-      guessTwice();
-      press('ArrowLeft');
-      expect(q<HTMLInputElement>('input[name=answer]').value).toBe('The Moat');
-      press('ArrowLeft');
-      expect(q<HTMLInputElement>('input[name=answer]').value).toBe('Landing Site');
-    });
-
-    it('walks forward again', () => {
-      guessTwice();
-      press('ArrowLeft');
-      press('ArrowLeft');
-      press('ArrowRight');
-      expect(q<HTMLInputElement>('input[name=answer]').value).toBe('The Moat');
-    });
-
-    it('comes back to an empty box at the end of history', () => {
-      guessTwice();
-      press('ArrowLeft');
-      press('ArrowRight');
-      expect(q<HTMLInputElement>('input[name=answer]').value).toBe('');
-    });
-
-    it('stops at the oldest guess rather than wrapping', () => {
-      guessTwice();
-      for (let i = 0; i < 6; i += 1) press('ArrowLeft');
-      expect(q<HTMLInputElement>('input[name=answer]').value).toBe('Landing Site');
-    });
-
-    /** Arrows have to keep moving the caret once you have edited the text. */
-    it('leaves the caret alone when the box holds something you typed', () => {
-      guessTwice();
-      type('some other room');
-      expect(press('ArrowLeft').defaultPrevented).toBe(false);
-      expect(q<HTMLInputElement>('input[name=answer]').value).toBe('some other room');
-    });
-
-    it('starts empty again on the next room', () => {
-      const app = mount();
-      const elsewhere = rooms.find((r) => !app.session.group().some((g) => g.id === r.id))!;
-      type(elsewhere.name);
-      press('Enter');
-      for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
-      click('button[data-action=next]');
-      press('ArrowLeft');
-      expect(q<HTMLInputElement>('input[name=answer]').value).toBe('');
-    });
-  });
 });
 
 describe('the room diagram hint', () => {
@@ -496,5 +446,114 @@ describe('the room diagram hint', () => {
     expect(root.querySelector('[data-role=stage] img[data-role=diagram]')).toBeNull();
     expect(q<HTMLCanvasElement>('canvas').hidden).toBe(false);
     void app;
+  });
+});
+
+describe('looking back at earlier rooms', () => {
+  const arrow = (key: 'ArrowLeft' | 'ArrowRight') => {
+    // Advancing focuses the answer box for typing, so stepping away from it is what a
+    // player does before reaching for the arrows.
+    q<HTMLInputElement>('input[name=answer]').blur();
+    const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    document.dispatchEvent(e);
+    return e;
+  };
+  const finish = () => {
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    click('button[data-action=next]');
+  };
+
+  it('has nothing to go back to at the start', () => {
+    const app = mount();
+    const first = app.session.current().name;
+    arrow('ArrowLeft');
+    expect(q('[data-role=viewing]').textContent).toBe('');
+    expect(app.session.current().name).toBe(first);
+  });
+
+  it('goes back to the room before this one', () => {
+    const app = mount();
+    const first = app.session.current().name;
+    finish();
+    arrow('ArrowLeft');
+    expect(q('[data-role=viewing]').textContent).toContain(first);
+  });
+
+  it('comes forward again to the room in play', () => {
+    mount();
+    finish();
+    arrow('ArrowLeft');
+    arrow('ArrowRight');
+    expect(q('[data-role=viewing]').textContent).toBe('');
+  });
+
+  it('stops at the oldest room rather than wrapping', () => {
+    const app = mount();
+    const first = app.session.current().name;
+    finish();
+    for (let i = 0; i < 5; i += 1) arrow('ArrowLeft');
+    expect(q('[data-role=viewing]').textContent).toContain(first);
+  });
+
+  it('hides the guessing controls while looking back', () => {
+    mount();
+    finish();
+    arrow('ArrowLeft');
+    expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(true);
+    arrow('ArrowRight');
+    expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(false);
+  });
+
+  /** Arrows have to keep moving the caret while the answer box has focus. */
+  it('leaves the arrows alone while the box is focused', () => {
+    mount();
+    finish();
+    const input = q<HTMLInputElement>('input[name=answer]');
+    input.focus();
+    const e = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+    input.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(false);
+    expect(q('[data-role=viewing]').textContent).toBe('');
+  });
+});
+
+describe('the map / room toggle', () => {
+  const revealDiagram = () => {
+    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
+  };
+
+  it('stays hidden until the room itself has been revealed', () => {
+    only('Volcano Room');
+    expect(q<HTMLButtonElement>('button[data-action=toggle-view]').hidden).toBe(true);
+    revealDiagram();
+    expect(q<HTMLButtonElement>('button[data-action=toggle-view]').hidden).toBe(false);
+  });
+
+  it('sits above the room, in the left column', () => {
+    only('Volcano Room');
+    revealDiagram();
+    const left = q<HTMLDivElement>('[data-role=left]');
+    const toggle = q<HTMLButtonElement>('button[data-action=toggle-view]');
+    const stage = q<HTMLDivElement>('[data-role=stage]');
+    expect(left.contains(toggle)).toBe(true);
+    expect(toggle.compareDocumentPosition(stage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('switches between the room and the map', () => {
+    only('Volcano Room');
+    revealDiagram();
+    expect(q<HTMLCanvasElement>('canvas').hidden).toBe(true);
+    click('button[data-action=toggle-view]');
+    expect(q<HTMLCanvasElement>('canvas').hidden).toBe(false);
+    expect(root.querySelector('[data-role=stage] img[data-role=diagram]')).toBeNull();
+    click('button[data-action=toggle-view]');
+    expect(q<HTMLCanvasElement>('canvas').hidden).toBe(true);
+  });
+
+  it('goes away again on the next room', () => {
+    mount();
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    click('button[data-action=next]');
+    expect(q<HTMLButtonElement>('button[data-action=toggle-view]').hidden).toBe(true);
   });
 });

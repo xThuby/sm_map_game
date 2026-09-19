@@ -7,6 +7,10 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   base: '/sm_map_game/',
+  build: {
+    // par.html is a second entry point: a review page for judging the par numbers.
+    rollupOptions: { input: { main: 'index.html', par: 'par.html' } },
+  },
   test: {
     // Deliberately broad: a narrower list once silently skipped tools/, and a test file that
     // is never collected is worse than one that fails.

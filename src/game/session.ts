@@ -107,8 +107,16 @@ export interface SessionOptions {
 
 export type RoomState = 'guessing' | 'solved' | 'lost';
 
+export interface PlayedRoom {
+  room: Room;
+  solved: boolean;
+  guessesUsed: number;
+}
+
 export interface Session {
   current(): Room;
+  /** Rooms already finished with, oldest first, for looking back over. */
+  played(): PlayedRoom[];
   state(): RoomState;
   guessesLeft(): number;
   hints(): Hint[];
@@ -136,6 +144,7 @@ export function createSession(options: SessionOptions): Session {
   let asked = 1;
   let totalSolved = 0;
   let totalGuesses = 0;
+  const finished: PlayedRoom[] = [];
 
   const state = (): RoomState => {
     if (solved) return 'solved';
@@ -202,8 +211,11 @@ export function createSession(options: SessionOptions): Session {
       spend();
     },
 
+    played: () => [...finished],
+
     next() {
       if (state() === 'guessing') throw new Error('This room is still in play');
+      finished.push({ room, solved, guessesUsed: spent });
       room = bag.take();
       spent = 0;
       solved = false;

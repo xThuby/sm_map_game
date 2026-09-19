@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   areaFromIndex, boundingBox, normalizeTile, deriveItemCount, deriveHasHiddenItem,
   deriveUtilities, deriveHasElevator, deriveOneWay, deriveAliases, deriveNeighbours, buildRoom,
-  buildAllRooms,
+  buildAllRooms, tidyEnemyName, mergeEnemies,
 } from './transform';
 import type { RawGeoRoom, RawMapTile, RawTileRoom, VanillaDoor } from './transform';
 import type { Tile } from '../src/types';
@@ -302,5 +302,54 @@ describe('curated alias keys', () => {
   it('accepts one keyed by a room that does', () => {
     const [room] = buildAllRooms([rawTiles()], [rawGeo()], {}, undefined, { 'The Moat': ['Puddle'] });
     expect(room?.aliases).toEqual(['Puddle']);
+  });
+});
+
+describe('tidyEnemyName', () => {
+  /**
+   * sm-json-data splits multi-phase bosses and palette variants into separate entries, which
+   * makes an enemies hint read like a bug report: "Botwoon 1, Botwoon 2, Reverse Botwoon 1".
+   */
+  it('folds fight phases back into one enemy', () => {
+    expect(tidyEnemyName('Botwoon 1')).toBe('Botwoon');
+    expect(tidyEnemyName('Reverse Botwoon 2')).toBe('Botwoon');
+    expect(tidyEnemyName('Mother Brain 3')).toBe('Mother Brain');
+  });
+
+  it('drops the palette variant but keeps the enemy it belongs to', () => {
+    expect(tidyEnemyName('Ripper 2 (green)')).toBe('Ripper 2');
+    expect(tidyEnemyName('Ripper 2 (red)')).toBe('Ripper 2');
+  });
+
+  it('leaves an ordinary name alone', () => {
+    for (const n of ['Fune', 'Sciser', 'Space Pirate (wall)', 'Zebbo']) {
+      expect(tidyEnemyName(n)).toBe(n === 'Space Pirate (wall)' ? 'Space Pirate' : n);
+    }
+  });
+});
+
+describe('mergeEnemies', () => {
+  /** A room holds one Botwoon in several phases, not several Botwoons. */
+  it('counts a multi-phase boss once', () => {
+    expect(mergeEnemies([
+      { name: 'Botwoon 1', quantity: 1 },
+      { name: 'Botwoon 2', quantity: 1 },
+      { name: 'Reverse Botwoon 1', quantity: 1 },
+      { name: 'Reverse Botwoon 2', quantity: 1 },
+    ])).toEqual([{ name: 'Botwoon', quantity: 1 }]);
+  });
+
+  it('adds up palette variants of an ordinary enemy', () => {
+    expect(mergeEnemies([
+      { name: 'Ripper 2 (green)', quantity: 2 },
+      { name: 'Ripper 2 (red)', quantity: 3 },
+    ])).toEqual([{ name: 'Ripper 2', quantity: 5 }]);
+  });
+
+  it('keeps distinct enemies apart', () => {
+    expect(mergeEnemies([
+      { name: 'Ripper 2 (red)', quantity: 2 },
+      { name: 'Zeela', quantity: 5 },
+    ])).toEqual([{ name: 'Ripper 2', quantity: 2 }, { name: 'Zeela', quantity: 5 }]);
   });
 });

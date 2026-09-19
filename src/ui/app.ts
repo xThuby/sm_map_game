@@ -6,6 +6,11 @@ import { pixelRenderer } from '../render/pixelRenderer';
 import { fitTileSize, VIEWPORT } from '../render/renderer';
 import type { Renderer } from '../render/renderer';
 import type { RenderSettings, Room } from '../types';
+import type { PlayedRoom } from '../game/session';
+
+/** Room diagrams are served from sm-json-data over a CDN, pinned to a commit. */
+const DIAGRAM_CDN = 'https://cdn.jsdelivr.net/gh/vg-json-data/sm-json-data'
+  + '@f0a990339a2d234ed8d3ae6234c855a016aae021';
 
 export interface AppOptions {
   rooms: Room[];
@@ -16,6 +21,8 @@ export interface AppOptions {
 
 export interface App {
   session: Session;
+  /** Detaches the document-level key handling. Mounting without this leaks listeners. */
+  destroy(): void;
 }
 
 const SUGGESTION_LIMIT = 6;
@@ -52,6 +59,9 @@ export function plural(n: number, word: string): string {
 export function mountApp(root: HTMLElement, options: AppOptions): App {
   const { rooms, settings, renderer = pixelRenderer, random } = options;
   const session = createSession({ rooms, settings, random });
+  // Arrow keys are bound on the document, which outlives this root, so they are torn down
+  // together rather than left behind.
+  const listeners = new AbortController();
   const index = buildNameIndex(loadRooms());
 
   /**
@@ -65,6 +75,10 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
         <h1>SM Map Rando Trainer</h1>
         <p>Identify the room from its Map Rando map tiles.</p>
         <p data-role="score"></p>
+        <p>
+          <button data-action="toggle-view" hidden>Show the map</button>
+          <span data-role="viewing"></span>
+        </p>
         <div data-role="stage" style="display:inline-block;line-height:0"
           ><canvas data-role="map"></canvas></div>
       </div>
@@ -106,22 +120,35 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   const guessButton = el<HTMLButtonElement>('button[data-action=guess]');
   const skipButton = el<HTMLButtonElement>('button[data-action=skip]');
   const nextButton = el<HTMLButtonElement>('button[data-action=next]');
+  const toggleButton = el<HTMLButtonElement>('button[data-action=toggle-view]');
+  const viewing = el<HTMLSpanElement>('[data-role=viewing]');
 
   const topSuggestion = () => autocomplete(input.value, index, 1)[0] ?? null;
 
-  /**
-   * What has been typed for this room, newest last, so the arrows can walk back through it.
-   * `historyAt` is the entry currently shown; one past the end means the box is the player's
-   * own, and the arrows leave the caret alone.
-   */
-  let history: string[] = [];
-  let historyAt = 0;
   /** Enter on an empty box is as likely a stray keypress as a decision, so it asks first. */
   let skipArmed = false;
+  /** How far back through finished rooms we are looking. 0 is the room in play. */
+  let lookingBack = 0;
+  /** Whether the stage shows the map rather than the room's own picture, once both exist. */
+  let showMap = false;
+
+  /** The room on screen, which is the one in play unless we are looking back. */
+  function viewedRoom(): Room {
+    const finished = session.played();
+    return lookingBack === 0
+      ? session.current()
+      : (finished[finished.length - lookingBack] as PlayedRoom).room;
+  }
+
+  /** A finished room's picture is always available; the room in play only once revealed. */
+  function diagramAvailable(): boolean {
+    if (lookingBack > 0) return viewedRoom().diagram !== null;
+    return session.hints().some((h) => h.kind === 'diagram' && h.imageUrl);
+  }
 
   /** Each room is drawn as large as it will go without running off the page. */
   function drawRoom(): void {
-    const room = session.current();
+    const room = viewedRoom();
     renderer.render(canvas, room, { ...settings, tileSize: fitTileSize(room, VIEWPORT) });
   }
 
@@ -130,18 +157,24 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
    * it: it is the same room, so showing both invites comparing two pictures of one thing.
    */
   function drawStage(): void {
-    const diagram = session.hints().find((h) => h.kind === 'diagram');
+    const room = viewedRoom();
+    const available = diagramAvailable();
     const existing = stage.querySelector('img[data-role=diagram]');
-    if (!diagram?.imageUrl) {
+
+    toggleButton.hidden = !available;
+    toggleButton.textContent = showMap ? 'Show the room' : 'Show the map';
+
+    if (!available || showMap) {
       existing?.remove();
       canvas.hidden = false;
       return;
     }
     canvas.hidden = true;
     if (existing) return;
+
     const img = document.createElement('img');
     img.dataset['role'] = 'diagram';
-    img.src = diagram.imageUrl;
+    img.src = `${DIAGRAM_CDN}/${room.diagram}`;
     img.alt = 'The room as it looks in game';
     img.width = canvas.width;
     img.height = canvas.height;
@@ -152,17 +185,24 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   function drawStatus(): void {
     const { asked, solved, guessesUsed } = session.score();
     score.textContent = `Solved ${solved} of ${asked} — ${plural(guessesUsed, 'guess')} used`;
-    const left = session.guessesLeft();
-    guesses.textContent = session.state() === 'guessing'
-      ? `${plural(left, 'guess')} left`
-      : '';
 
+    const back = lookingBack > 0;
     const over = session.state() !== 'guessing';
-    guessButton.hidden = over;
-    skipButton.hidden = over;
+
+    viewing.textContent = back
+      ? `Looking back at ${viewedRoom().name} — right arrow to return`
+      : '';
+    guesses.textContent = !back && !over ? `${plural(session.guessesLeft(), 'guess')} left` : '';
+
+    // Looking back is read-only: that room is already finished with.
+    input.hidden = back;
     input.disabled = over;
-    nextButton.hidden = !over;
+    guessButton.hidden = back || over;
+    skipButton.hidden = back || over;
+    nextButton.hidden = back || !over;
+    if (back) suggestions.innerHTML = '';
   }
+
 
   function drawHints(): void {
     hintList.innerHTML = session.hints().map((h: Hint) => `
@@ -226,8 +266,8 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   function advance(): void {
     session.next();
     input.value = '';
-    history = [];
-    historyAt = 0;
+    lookingBack = 0;
+    showMap = false;
     standDown();
     verdict.textContent = '';
     drawRoom();
@@ -257,8 +297,6 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     if (input.value.trim() === '') return;
     standDown();
 
-    history.push(input.value);
-    historyAt = history.length;
     const grade = session.guess(input.value);
 
     if (!grade.recognised) {
@@ -286,21 +324,9 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   nextButton.addEventListener('click', advance);
   input.addEventListener('input', () => {
     standDown();
-    // Typing makes the box the player's own again, so the arrows go back to moving the caret.
-    historyAt = history.length;
     drawSuggestions();
   });
   input.addEventListener('blur', standDown);
-
-  /** True while the box still holds exactly what history put there, untouched. */
-  const browsingHistory = () =>
-    input.value === '' || input.value === history[historyAt];
-
-  function showHistory(at: number): void {
-    historyAt = Math.min(Math.max(at, 0), history.length);
-    input.value = history[historyAt] ?? '';
-    drawSuggestions();
-  }
 
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') { standDown(); return; }
@@ -321,14 +347,38 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       return;
     }
 
-    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && history.length > 0) {
-      if (!browsingHistory()) return;
-      event.preventDefault();
-      showHistory(historyAt + (event.key === 'ArrowLeft' ? -1 : 1));
-    }
   });
+
+  toggleButton.addEventListener('click', () => {
+    showMap = !showMap;
+    drawRoom();
+    redraw();
+  });
+
+  /**
+   * Left and right step back and forward through the rooms already finished with. They are
+   * bound on the document rather than the box, and ignored while the box has focus, so they
+   * keep moving the caret while you are typing an answer.
+   */
+  function look(step: number): void {
+    const limit = session.played().length;
+    const next = Math.min(Math.max(lookingBack + step, 0), limit);
+    if (next === lookingBack) return;
+    lookingBack = next;
+    showMap = false;
+    drawRoom();
+    redraw();
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    // While the answer box has focus the arrows belong to the caret.
+    if (document.activeElement === input) return;
+    event.preventDefault();
+    look(event.key === 'ArrowLeft' ? 1 : -1);
+  }, { signal: listeners.signal });
 
   drawRoom();
   redraw();
-  return { session };
+  return { session, destroy: () => listeners.abort() };
 }

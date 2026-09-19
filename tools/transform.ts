@@ -188,6 +188,44 @@ function mergeAliases(name: string, fromSmJson: string[], curated: string[]): st
   return out;
 }
 
+/**
+ * sm-json-data names each phase of a boss fight and each palette variant separately, which
+ * turns an enemies hint into "Botwoon 1, Botwoon 2, Reverse Botwoon 1, Reverse Botwoon 2".
+ * A player thinks of that as one Botwoon.
+ *
+ * "Ripper 2" keeps its number: it is a genuinely different enemy from a Ripper, and only the
+ * colour in brackets is a variant.
+ */
+const PHASE = /^(?:Reverse\s+)?(Botwoon|Mother Brain)\s+\d+$/;
+
+export function tidyEnemyName(name: string): string {
+  const withoutVariant = name.replace(/\s*\([^)]*\)\s*$/, '');
+  return PHASE.exec(withoutVariant)?.[1] ?? withoutVariant;
+}
+
+/** Whether this entry is one phase of a single boss rather than a creature in its own right. */
+function isPhase(name: string): boolean {
+  return PHASE.test(name.replace(/\s*\([^)]*\)\s*$/, ''));
+}
+
+/**
+ * Enemies as a player would list them, phases and variants folded together.
+ *
+ * Phases count once however many there are — a room holds one Botwoon, not four. Palette
+ * variants of an ordinary enemy do add up, because those really are separate creatures.
+ */
+export function mergeEnemies(
+  enemies: { name: string; quantity: number }[],
+): { name: string; quantity: number }[] {
+  const counts = new Map<string, number>();
+  for (const e of enemies) {
+    const name = tidyEnemyName(e.name);
+    const seen = counts.get(name) ?? 0;
+    counts.set(name, isPhase(e.name) ? Math.max(seen, 1) : seen + e.quantity);
+  }
+  return [...counts].map(([name, quantity]) => ({ name, quantity }));
+}
+
 export function deriveOneWay(geo: RawGeoRoom): OneWay | null {
   if (geo.parts.length <= 1) return null;
   return {
@@ -271,7 +309,7 @@ export function buildRoom(
     utilities: deriveUtilities(tiles),
     hasElevator: deriveHasElevator(tiles),
     oneWay: deriveOneWay(geo),
-    enemies: extra.enemies ?? [],
+    enemies: mergeEnemies(extra.enemies ?? []),
     neighbours: extra.neighbours ?? [],
     diagram: extra.diagram ?? null,
   };
