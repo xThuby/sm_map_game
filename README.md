@@ -30,8 +30,9 @@ reveal, but a hint will always separate them, so naming the wrong twin is a wron
 Once a round is over you can walk back through its six rooms with the left and right arrows,
 which show each room as it was and what the round stood at then.
 
-A round is six rooms; after each one you get a summary of how it went — points won, guesses
-taken, rooms going worst — against your running stats, which are kept in the browser.
+A round is six rooms; after each one you get a summary of how it went — points won, how many
+hints each room took, rooms going worst — against your running stats, which are kept in the
+browser and can be erased from that summary.
 
 Every room name the game accepts lives in [data/room-names.json](data/room-names.json) — all
 253 rooms, each with the other names it answers to. Edit it by hand and re-run

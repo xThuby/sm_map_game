@@ -1,4 +1,7 @@
-import { MAX_GUESSES } from './costs';
+import { HINT_ORDER } from './costs';
+
+/** A room can need every hint there is, or none: that is the width of the histogram. */
+export const MOST_HINTS = HINT_ORDER.length;
 
 export const STORAGE_KEY = 'sm-map-game/stats/v1';
 
@@ -12,8 +15,8 @@ export interface RoomStat {
 export interface Stats {
   played: number;
   lost: number;
-  /** Rooms solved on each guess: index 0 is a first-guess win. */
-  byGuess: number[];
+  /** Rooms solved on each number of hints: index 0 is a room named with no help at all. */
+  byHints: number[];
   rooms: Record<string, RoomStat>;
   /** Points banked over every room ever played, lost ones included at zero. */
   points: number;
@@ -31,6 +34,8 @@ export interface RoomOutcome {
   roomName: string;
   solved: boolean;
   guessesUsed: number;
+  /** Hints showing when the room ended, bought or thrown in with a wrong answer. */
+  hintsUsed: number;
   /** What the room was worth once the hints bought on it were paid for. */
   points: number;
 }
@@ -53,17 +58,17 @@ export interface StrugglingRoom {
 
 export function emptyStats(): Stats {
   return {
-    played: 0, lost: 0, byGuess: Array(MAX_GUESSES).fill(0), rooms: {},
+    played: 0, lost: 0, byHints: Array(MOST_HINTS + 1).fill(0), rooms: {},
     points: 0, pointedRooms: 0, bestRound: 0,
   };
 }
 
 /** Returns new stats rather than changing the ones given. */
 export function recordRoom(stats: Stats, outcome: RoomOutcome): Stats {
-  const byGuess = [...stats.byGuess];
+  const byHints = [...stats.byHints];
   if (outcome.solved) {
-    const at = Math.min(Math.max(outcome.guessesUsed, 1), MAX_GUESSES) - 1;
-    byGuess[at] = (byGuess[at] ?? 0) + 1;
+    const at = Math.min(Math.max(outcome.hintsUsed, 0), MOST_HINTS);
+    byHints[at] = (byHints[at] ?? 0) + 1;
   }
   const before = stats.rooms[outcome.roomName] ?? { attempts: 0, solved: 0, guesses: 0 };
   return {
@@ -72,7 +77,7 @@ export function recordRoom(stats: Stats, outcome: RoomOutcome): Stats {
     lost: stats.lost + (outcome.solved ? 0 : 1),
     points: stats.points + outcome.points,
     pointedRooms: stats.pointedRooms + 1,
-    byGuess,
+    byHints,
     rooms: {
       ...stats.rooms,
       [outcome.roomName]: {
@@ -101,11 +106,11 @@ export function winRate(stats: Stats): number {
   return Math.round(((stats.played - stats.lost) / stats.played) * 100);
 }
 
-/** One bar per guess, plus a final bar for rooms that were never got. */
-export function guessHistogram(stats: Stats): Bar[] {
-  const counts = [...stats.byGuess, stats.lost];
+/** One bar per number of hints needed, plus a final bar for rooms that were never got. */
+export function hintHistogram(stats: Stats): Bar[] {
+  const counts = [...stats.byHints, stats.lost];
   return counts.map((count, i) => ({
-    label: i < MAX_GUESSES ? String(i + 1) : 'X',
+    label: i <= MOST_HINTS ? String(i) : 'X',
     count,
     share: stats.played === 0 ? 0 : Math.round((count / stats.played) * 100),
   }));
@@ -131,13 +136,14 @@ export function strugglingRooms(stats: Stats, limit: number): StrugglingRoom[] {
 }
 
 /**
- * Points arrived after stats did, so they are optional here: a save from before them is
- * worth keeping, and loadStats fills the missing fields in with nothing banked.
+ * Fields that arrived after stats did are optional here: a save from before them is worth
+ * keeping, and loadStats fills the missing ones in with nothing counted.
  */
 function isStats(value: unknown): value is Partial<Stats> & Stats {
   const s = value as Stats | null;
   return !!s && typeof s.played === 'number' && typeof s.lost === 'number'
-    && Array.isArray(s.byGuess) && s.byGuess.every((n) => typeof n === 'number')
+    && (s.byHints === undefined
+      || (Array.isArray(s.byHints) && s.byHints.every((n) => typeof n === 'number')))
     && typeof s.rooms === 'object' && s.rooms !== null
     && ['points', 'pointedRooms', 'bestRound'].every((k) => {
       const v = (s as unknown as Record<string, unknown>)[k];
@@ -146,13 +152,14 @@ function isStats(value: unknown): value is Partial<Stats> & Stats {
 }
 
 /**
- * A saved histogram to the width a room allows today. The width follows the points, so a
- * save from a different one is padded or folded into its last bar rather than discarded.
+ * A saved histogram to today's width. It counted guesses once and counts hints now, so a
+ * save from before that is not carried over — the counts would be answering another
+ * question. Only a change of width is repaired.
  */
-function widen(byGuess: number[]): number[] {
-  const bars = Array(MAX_GUESSES).fill(0) as number[];
-  for (const [i, count] of byGuess.entries()) {
-    const at = Math.min(i, MAX_GUESSES - 1);
+function fit(byHints: number[] | undefined): number[] {
+  const bars = Array(MOST_HINTS + 1).fill(0) as number[];
+  for (const [i, count] of (byHints ?? []).entries()) {
+    const at = Math.min(i, MOST_HINTS);
     bars[at] = (bars[at] ?? 0) + count;
   }
   return bars;
@@ -168,7 +175,7 @@ export function loadStats(storage: Storage | null): Stats {
     if (!raw) return emptyStats();
     const parsed: unknown = JSON.parse(raw);
     if (!isStats(parsed)) return emptyStats();
-    return { ...emptyStats(), ...parsed, byGuess: widen(parsed.byGuess ?? []) };
+    return { ...emptyStats(), ...parsed, byHints: fit(parsed.byHints) };
   } catch {
     return emptyStats();
   }

@@ -763,12 +763,92 @@ describe('rounds', () => {
     expect(q('[data-role=points]').textContent).toContain(String(STARTING_POINTS));
   });
 
-  it('draws a bar for every guess and one for a loss', () => {
+  /** How much help a room took is the interesting number now that guesses are not rationed. */
+  it('draws a bar for every number of hints and one for a loss', () => {
     mount();
     playRound();
     const bars = root.querySelectorAll('[data-role=bar]');
-    expect(bars).toHaveLength(MAX_GUESSES + 1);
+    expect(bars).toHaveLength(HINT_ORDER.length + 2);
+    expect(bars[0]?.getAttribute('data-label')).toBe('0');
     expect(bars[bars.length - 1]?.getAttribute('data-label')).toBe('X');
+    expect(q('[data-role=summary]').textContent).toMatch(/hints needed/i);
+  });
+
+  it('counts a room named with no help into the first bar', () => {
+    const app = mount();
+    playPerfectRound(app);
+    const bars = [...root.querySelectorAll('[data-role=bar]')];
+    expect(bars[0]?.textContent).toContain(String(ROUND_LENGTH));
+  });
+
+  it('counts a room against the hints it took, bought or thrown in', () => {
+    const app = mount();
+    buy('area');
+    buy('neighbour');
+    type(app.session.current().name);
+    click('button[data-action=guess]');
+    click('button[data-action=next]');
+    for (let i = 0; i < ROUND_LENGTH - 2; i += 1) {
+      type(app.session.current().name);
+      click('button[data-action=guess]');
+      click('button[data-action=next]');
+    }
+    type(app.session.current().name);
+    click('button[data-action=guess]');
+    const bars = [...root.querySelectorAll('[data-role=bar]')];
+    expect(bars[0]?.textContent).toContain(String(ROUND_LENGTH - 1));
+    expect(bars[2]?.textContent).toContain('1');
+  });
+
+  describe('erasing the all-time stats', () => {
+    const resetButton = () =>
+      root.querySelector<HTMLButtonElement>('button[data-action=reset-stats]');
+
+    it('offers a button with the all-time figures', () => {
+      mount();
+      playRound();
+      expect(resetButton()).toBeTruthy();
+      expect(q('[data-role=summary]').contains(resetButton())).toBe(true);
+    });
+
+    /** There is no getting them back, so one press is not enough. */
+    it('asks before erasing anything', () => {
+      const app = mount();
+      playPerfectRound(app);
+      const before = q('[data-role=all-points]').textContent;
+      resetButton()?.click();
+      expect(resetButton()?.textContent).toMatch(/again/i);
+      expect(q('[data-role=all-points]').textContent).toBe(before);
+    });
+
+    it('erases them on the second press', () => {
+      const app = mount();
+      playPerfectRound(app);
+      resetButton()?.click();
+      resetButton()?.click();
+      expect(q('[data-role=all-points]').textContent).toMatch(/average 0 points/i);
+      expect(q('[data-role=all-points]').textContent).toMatch(/best round 0/i);
+      expect(q('[data-role=struggles]').querySelectorAll('li')).toHaveLength(0);
+    });
+
+    /** The round just played is still the round just played. */
+    it('leaves the round it is shown beside alone', () => {
+      const app = mount();
+      playPerfectRound(app);
+      resetButton()?.click();
+      resetButton()?.click();
+      expect(q('[data-role=round-points]').textContent)
+        .toContain(String(STARTING_POINTS * ROUND_LENGTH));
+    });
+
+    it('stands down when the next round starts', () => {
+      const app = mount();
+      playPerfectRound(app);
+      resetButton()?.click();
+      click('button[data-action=new-round]');
+      playPerfectRound(app);
+      expect(resetButton()?.textContent).not.toMatch(/again/i);
+    });
   });
 
   it('shows this round and all time on the same bar', () => {

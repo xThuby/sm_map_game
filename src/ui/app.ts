@@ -6,7 +6,7 @@ import { pixelRenderer } from '../render/pixelRenderer';
 import { fitTileSize, VIEWPORT } from '../render/renderer';
 import { allPars, PAR_OVERRIDES } from '../game/par';
 import {
-  emptyStats, recordRoom, recordRound, winRate, guessHistogram, strugglingRooms,
+  emptyStats, recordRoom, recordRound, winRate, hintHistogram, strugglingRooms,
   averagePoints, loadStats, saveStats,
 } from '../game/stats';
 import type { Stats } from '../game/stats';
@@ -159,6 +159,8 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   let recorded = false;
   /** Which round's total has been banked, so a redraw does not bank it again. */
   let roundBanked = 0;
+  /** Erasing the all-time stats cannot be undone, so the button asks once first. */
+  let resetArmed = false;
 
   /**
    * How many guesses each room ought to take, worked out once. It is shown to the player as
@@ -320,6 +322,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       roomName: session.current().name,
       solved: session.state() === 'solved',
       guessesUsed: session.guessesUsed(),
+      hintsUsed: session.hintsUsed(),
       points: session.points(),
     };
     allTime = recordRoom(allTime, outcome);
@@ -358,8 +361,8 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     summary.hidden = !session.roundComplete();
     if (summary.hidden) return;
 
-    const roundBars = guessHistogram(thisRound);
-    const allBars = guessHistogram(allTime);
+    const roundBars = hintHistogram(thisRound);
+    const allBars = hintHistogram(allTime);
     const roundRate = winRate(thisRound);
     const allRate = winRate(allTime);
     const diff = roundRate - allRate;
@@ -373,14 +376,17 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       <p data-role="win-rate">Solved ${roundRate}% this round
         <span data-role="win-diff">(${diff >= 0 ? '+' : ''}${diff} against ${allRate}% all time)</span>
       </p>
-      <p>Solved on guess — <span style="color:#7cf">this round</span> over all time</p>
+      <p>Hints needed — <span style="color:#7cf">this round</span> over all time</p>
       <ul style="list-style:none;padding:0;max-width:22em">
         ${roundBars.map((b, i) => bar(b.label, b.share, allBars[i]?.share ?? 0, b.count)).join('')}
       </ul>
       ${struggles.length ? `<p>Rooms going worst</p>
         <ol data-role="struggles">${struggles.map((r) => `<li>${r.name}
           — solved ${r.solved} of ${r.attempts}, ${r.averageGuesses.toFixed(1)} guesses on
-          average</li>`).join('')}</ol>` : '<ol data-role="struggles"></ol>'}`;
+          average</li>`).join('')}</ol>` : '<ol data-role="struggles"></ol>'}
+      <p><button data-action="reset-stats">${resetArmed
+  ? 'Click again to erase everything'
+  : 'Erase all-time stats'}</button></p>`;
   }
 
 
@@ -495,6 +501,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
    * the last room's verdict sitting over the new one.
    */
   function clearBoard(): void {
+    resetArmed = false;
     recorded = false;
     input.value = '';
     suggestionAt = 0;
@@ -545,6 +552,23 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     session.giveUp();
     verdict.textContent = '';
     redraw();
+  });
+
+  /**
+   * The summary is rewritten on every redraw, so its button is caught on the way up too.
+   * Erasing all-time stats cannot be undone, hence the second press.
+   */
+  root.addEventListener('click', (event) => {
+    if (!(event.target as HTMLElement).closest('button[data-action=reset-stats]')) return;
+    if (!resetArmed) {
+      resetArmed = true;
+      drawSummary();
+      return;
+    }
+    resetArmed = false;
+    allTime = emptyStats();
+    saveStats(storage, allTime);
+    drawSummary();
   });
 
   /**

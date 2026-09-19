@@ -158,6 +158,37 @@ describe('guesses', () => {
     expect(() => s.buyHint('area')).toThrow();
   });
 
+  /**
+    * hints() gives up everything once a room is over, so it cannot say how much help the
+    * room actually took. This counts what was showing before the reveal, bought or thrown in.
+    */
+  it('counts the hints that were showing, after the reveal as well as before', () => {
+    const s = only('Volcano Room');
+    expect(s.hintsUsed()).toBe(0);
+    s.buyHint('neighbour');
+    expect(s.hintsUsed()).toBe(1);
+    s.guess('Landing Site');
+    expect(s.hintsUsed()).toBe(2);
+    s.giveUp();
+    expect(s.hints()).toHaveLength(HINT_ORDER.length);
+    expect(s.hintsUsed()).toBe(2);
+  });
+
+  it('counts both name letters as the one hint they are', () => {
+    const s = only('Volcano Room');
+    s.buyHint('name');
+    s.buyHint('name');
+    expect(s.hintsUsed()).toBe(1);
+  });
+
+  it('starts the next room back at none', () => {
+    const s = only('Volcano Room');
+    s.buyHint('area');
+    s.giveUp();
+    s.next();
+    expect(s.hintsUsed()).toBe(0);
+  });
+
   it('remembers the rooms already tried and found wrong', () => {
     const s = only('Volcano Room');
     expect(s.wrongGuesses()).toEqual([]);

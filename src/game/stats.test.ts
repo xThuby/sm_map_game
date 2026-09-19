@@ -1,16 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import {
-  emptyStats, recordRoom, recordRound, winRate, guessHistogram, strugglingRooms,
-  averagePoints, loadStats, saveStats, STORAGE_KEY,
+  emptyStats, recordRoom, recordRound, winRate, hintHistogram, strugglingRooms,
+  averagePoints, loadStats, saveStats, STORAGE_KEY, MOST_HINTS,
 } from './stats';
 import type { Stats } from './stats';
 import { MAX_GUESSES } from './costs';
 
-const solve = (stats: Stats, name: string, guesses: number, points = 100) => recordRoom(
-  stats, { roomId: name.length, roomName: name, solved: true, guessesUsed: guesses, points },
-);
+const solve = (stats: Stats, name: string, hints: number, points = 100, guesses = 1) =>
+  recordRoom(stats, {
+    roomId: name.length, roomName: name, solved: true, guessesUsed: guesses, points,
+    hintsUsed: hints,
+  });
 const lose = (stats: Stats, name: string) => recordRoom(stats, {
   roomId: name.length, roomName: name, solved: false, guessesUsed: MAX_GUESSES, points: 0,
+  hintsUsed: MOST_HINTS,
 });
 
 describe('recordRoom', () => {
@@ -18,20 +21,26 @@ describe('recordRoom', () => {
     const s = emptyStats();
     expect(s.played).toBe(0);
     expect(s.lost).toBe(0);
-    expect(s.byGuess.every((n) => n === 0)).toBe(true);
+    expect(s.byHints.every((n: number) => n === 0)).toBe(true);
   });
 
-  it('counts a win against the guess it took', () => {
+  it('counts a win against the hints it took', () => {
     const s = solve(emptyStats(), 'The Moat', 3);
-    expect(s.byGuess[2]).toBe(1);
+    expect(s.byHints[3]).toBe(1);
     expect(s.played).toBe(1);
     expect(s.lost).toBe(0);
   });
 
-  it('counts a loss separately from any guess', () => {
+  /** Naming a room with no help at all is the first bar, not a missing one. */
+  it('counts a win with no hints into the first bar', () => {
+    const s = solve(emptyStats(), 'The Moat', 0);
+    expect(s.byHints[0]).toBe(1);
+  });
+
+  it('counts a loss separately from any number of hints', () => {
     const s = lose(emptyStats(), 'The Moat');
     expect(s.lost).toBe(1);
-    expect(s.byGuess.every((n) => n === 0)).toBe(true);
+    expect(s.byHints.every((n: number) => n === 0)).toBe(true);
   });
 
   it('leaves the stats it was given untouched', () => {
@@ -42,7 +51,7 @@ describe('recordRoom', () => {
 
   it('keeps a tally per room', () => {
     let s = emptyStats();
-    s = solve(s, 'The Moat', 2);
+    s = solve(s, 'The Moat', 0, 100, 2);
     s = lose(s, 'The Moat');
     expect(s.rooms['The Moat']).toEqual({ attempts: 2, solved: 1, guesses: 2 + MAX_GUESSES });
   });
@@ -63,38 +72,40 @@ describe('winRate', () => {
   });
 });
 
-describe('guessHistogram', () => {
-  it('has a bar for every guess and one for a loss', () => {
-    expect(guessHistogram(emptyStats())).toHaveLength(MAX_GUESSES + 1);
+describe('hintHistogram', () => {
+  /** None through every hint there is, and one more for the rooms never got. */
+  it('has a bar for every number of hints and one for a loss', () => {
+    expect(hintHistogram(emptyStats())).toHaveLength(MOST_HINTS + 2);
   });
 
-  it('labels the last bar as a loss', () => {
-    const bars = guessHistogram(emptyStats());
+  it('labels the first bar none and the last a loss', () => {
+    const bars = hintHistogram(emptyStats());
+    expect(bars[0]?.label).toBe('0');
+    expect(bars[MOST_HINTS]?.label).toBe(String(MOST_HINTS));
     expect(bars[bars.length - 1]?.label).toBe('X');
-    expect(bars[0]?.label).toBe('1');
   });
 
   it('counts each outcome into its own bar', () => {
     let s = emptyStats();
-    s = solve(s, 'A', 1);
-    s = solve(s, 'B', 1);
+    s = solve(s, 'A', 0);
+    s = solve(s, 'B', 0);
     s = solve(s, 'C', 3);
     s = lose(s, 'D');
-    const bars = guessHistogram(s);
+    const bars = hintHistogram(s);
     expect(bars[0]?.count).toBe(2);
-    expect(bars[2]?.count).toBe(1);
+    expect(bars[3]?.count).toBe(1);
     expect(bars[bars.length - 1]?.count).toBe(1);
   });
 
   it('gives each bar its share, so a graph can be drawn without re-totalling', () => {
     let s = emptyStats();
-    s = solve(s, 'A', 1);
+    s = solve(s, 'A', 0);
     s = solve(s, 'B', 2);
-    expect(guessHistogram(s)[0]?.share).toBe(50);
+    expect(hintHistogram(s)[0]?.share).toBe(50);
   });
 
   it('gives every bar a zero share when nothing has been played', () => {
-    expect(guessHistogram(emptyStats()).every((b) => b.share === 0)).toBe(true);
+    expect(hintHistogram(emptyStats()).every((b) => b.share === 0)).toBe(true);
   });
 });
 
@@ -109,8 +120,8 @@ describe('strugglingRooms', () => {
 
   it('breaks a tie on how many guesses they cost', () => {
     let s = emptyStats();
-    s = solve(s, 'Slow', 5);
-    s = solve(s, 'Quick', 1);
+    s = solve(s, 'Slow', 0, 100, 5);
+    s = solve(s, 'Quick', 0, 100, 1);
     const [first] = strugglingRooms(s, 5);
     expect(first?.name).toBe('Slow');
   });
@@ -235,29 +246,30 @@ describe('storage', () => {
   });
 
   /**
-   * The histogram is as wide as the points allow guesses, and that width has changed. A
-   * save from a narrower one is worth keeping: it is padded, not thrown away.
+   * The histogram counted guesses once and counts hints now. A save from before that keeps
+   * everything else and starts the histogram empty: the old counts answered another question.
    */
-  it('widens a histogram saved when a room allowed fewer guesses', () => {
+  it('reads stats saved when the histogram counted guesses', () => {
     const store = fakeStorage();
-    const narrow = { ...solve(emptyStats(), 'The Moat', 2), byGuess: [0, 1, 0, 0, 0, 0] };
-    store.setItem(STORAGE_KEY, JSON.stringify(narrow));
+    const old = { ...solve(emptyStats(), 'The Moat', 2), byHints: undefined, byGuess: [0, 1, 0] };
+    store.setItem(STORAGE_KEY, JSON.stringify(old));
     const loaded = loadStats(store);
-    expect(loaded.byGuess).toHaveLength(MAX_GUESSES);
-    expect(loaded.byGuess[1]).toBe(1);
+    expect(loaded.byHints).toHaveLength(MOST_HINTS + 1);
+    expect(loaded.byHints.every((n: number) => n === 0)).toBe(true);
     expect(loaded.played).toBe(1);
+    expect(loaded.points).toBe(100);
   });
 
-  it('folds a histogram saved when a room allowed more guesses into its last bar', () => {
+  it('folds a histogram saved at a greater width into its last bar', () => {
     const store = fakeStorage();
     const wide = {
       ...solve(emptyStats(), 'The Moat', 2),
-      byGuess: [...Array(MAX_GUESSES).fill(0), 3, 4],
+      byHints: [...Array(MOST_HINTS + 1).fill(0), 3, 4],
     };
     store.setItem(STORAGE_KEY, JSON.stringify(wide));
     const loaded = loadStats(store);
-    expect(loaded.byGuess).toHaveLength(MAX_GUESSES);
-    expect(loaded.byGuess[MAX_GUESSES - 1]).toBe(7);
+    expect(loaded.byHints).toHaveLength(MOST_HINTS + 1);
+    expect(loaded.byHints[MOST_HINTS]).toBe(7);
   });
 
   it('starts fresh when the stored shape is wrong', () => {

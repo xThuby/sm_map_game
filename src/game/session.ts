@@ -166,6 +166,11 @@ export interface Session {
   guessesUsed(): number;
   /** The rooms already named and found wrong on this one, oldest first. */
   wrongGuesses(): Room[];
+  /**
+   * How many hints are showing because they were bought or thrown in — not what `hints()`
+   * returns once the room is over, which is all of them.
+   */
+  hintsUsed(): number;
   /** What the room in play is still worth: a hundred less whatever hints were bought. */
   points(): number;
   /** The points banked this round, the room in play included once it is over. */
@@ -306,6 +311,7 @@ export function createSession(options: SessionOptions): Session {
     state,
     guessesUsed: () => used,
     wrongGuesses: () => [...wrong],
+    hintsUsed: () => HINT_ORDER.filter((kind) => timesBought(kind) > 0).length,
     points,
     roundPoints: () => roundResults().reduce((sum, r) => sum + r.points, 0),
     hints: onShow,
