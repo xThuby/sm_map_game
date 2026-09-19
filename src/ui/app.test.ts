@@ -117,22 +117,22 @@ describe('guessing', () => {
   it('reveals a hint per spent guess', () => {
     only('Volcano Room');
     click('button[data-action=skip]');
-    expect(q('[data-role=hints]').textContent).toContain('Norfair');
+    expect(q('[data-role=facts]').textContent).toContain('Norfair');
     click('button[data-action=skip]');
-    expect(q('[data-role=hints]').textContent).toContain('Fune');
+    expect(q('[data-role=facts]').textContent).toContain('Fune');
   });
 
   it('has every hint out while the final guess is still available', () => {
     only('Volcano Room');
     for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
     expect(q('[data-role=guesses]').textContent).toContain('1 guess left');
-    expect(q('[data-role=hints]').textContent).toContain('Norfair');
+    expect(q('[data-role=facts]').textContent).toContain('Norfair');
   });
 
   it('reveals the answer once every guess is spent', () => {
     only('Volcano Room');
     for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
-    expect(q('[data-role=reveal]').textContent).toContain('Volcano Room');
+    expect(q('[data-role=room-name]').textContent).toContain('Volcano Room');
   });
 
   /** A button labelled Answer should not spend a guess on a hint; only Enter offers that. */
@@ -153,51 +153,6 @@ describe('guessing', () => {
   });
 });
 
-describe('the reveal', () => {
-  const revealOf = (name: string) => {
-    only(name);
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
-    return q('[data-role=reveal]').textContent ?? '';
-  };
-  /** Facts render as separate list items; textContent would run them together. */
-  const factsOf = (name: string) => {
-    only(name);
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
-    return [...root.querySelectorAll('[data-role=reveal] li')].map((li) => li.textContent ?? '');
-  };
-
-  it('says nothing about heat when the room is not heated', () => {
-    expect(revealOf('The Moat')).not.toMatch(/not heated/i);
-  });
-
-  it('says a room is heated when it is', () => {
-    expect(revealOf('Volcano Room')).toMatch(/heated/i);
-  });
-
-  it('omits the items line when there are none', () => {
-    expect(factsOf('Volcano Room').some((f) => /item/i.test(f))).toBe(false);
-  });
-
-  it('writes item singular and items plural', () => {
-    expect(factsOf('Crateria Power Bomb Room')).toContain('1 item');
-    expect(factsOf('East Sand Hole')).toContain('2 items');
-  });
-
-  it('names the look-alikes when there are any', () => {
-    expect(revealOf('Wave Beam Room')).toContain('Ice Beam Room');
-  });
-
-  it('offers a prefilled issue link for suggesting another name', () => {
-    only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
-    const link = q<HTMLAnchorElement>('[data-role=reveal] a[data-action=suggest-alias]');
-    expect(link.href).toContain(ALIAS_ISSUE_BASE);
-    const params = new URL(link.href).searchParams;
-    expect(params.get('title')).toContain('Volcano Room');
-    expect(params.get('body')).toContain('Volcano Room');
-    expect(params.get('labels')).toBe('alias-suggestion');
-  });
-});
 
 describe('typing', () => {
   it('offers completions as you type', () => {
@@ -240,19 +195,24 @@ describe('moving on', () => {
     click('button[data-action=next]');
     expect(q<HTMLInputElement>('input[name=answer]').value).toBe('');
     expect(q('[data-role=verdict]').textContent).toBe('');
-    expect(q('[data-role=hints]').textContent).toBe('');
-    expect(q('[data-role=reveal]').textContent).toBe('');
+    expect(q('[data-role=room-name]').textContent).toBe('???');
     expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
   });
 
-  it('keeps a running score', () => {
+  it('counts which room of the round you are on', () => {
     const app = mount();
-    for (let i = 0; i < 3; i += 1) {
+    expect(q('[data-role=score]').textContent).toMatch(/Room 1 of 6/);
+    for (let i = 0; i < 2; i += 1) {
       type(app.session.current().name);
       click('button[data-action=guess]');
       click('button[data-action=next]');
     }
-    expect(q('[data-role=score]').textContent).toContain('3');
+    expect(q('[data-role=score]').textContent).toMatch(/Room 3 of 6/);
+  });
+
+  it('says nothing about guesses used up there', () => {
+    mount();
+    expect(q('[data-role=score]').textContent).not.toMatch(/guess/i);
   });
 });
 
@@ -365,8 +325,8 @@ describe('the two columns', () => {
     expect(right.querySelector('button[data-action=guess]')).toBeTruthy();
     expect(right.querySelector('button[data-action=skip]')).toBeTruthy();
     expect(right.querySelector('[data-role=guesses]')).toBeTruthy();
-    expect(right.querySelector('[data-role=hints]')).toBeTruthy();
-    expect(right.querySelector('[data-role=reveal]')).toBeTruthy();
+    expect(right.querySelector('[data-role=facts]')).toBeTruthy();
+    expect(right.querySelector('[data-role=room-name]')).toBeTruthy();
   });
 
   it('keeps the guessing column in view beside a room taller than the page', () => {
@@ -432,7 +392,7 @@ describe('the keyboard', () => {
       press('Enter');
       press('Enter');
       expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES - 1));
-      expect(q('[data-role=hints]').textContent).toContain('Norfair');
+      expect(q('[data-role=facts]').textContent).toContain('Norfair');
     });
 
     it('stands down when you start typing', () => {
@@ -670,5 +630,159 @@ describe('rounds', () => {
     mount();
     playRound();
     expect(q('[data-role=win-rate]').textContent).toContain('0%');
+  });
+});
+
+describe('the fact panel', () => {
+  const facts = () => [...root.querySelectorAll('[data-role=fact]')]
+    .map((li) => li.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+
+  it('starts with the name and every hinted fact unknown', () => {
+    only('Watering Hole');
+    expect(q('[data-role=room-name]').textContent).toBe('???');
+    expect(facts()).toContain('Area: ?');
+    expect(facts()).toContain('Enemies: ?');
+    expect(facts()).toContain('Connects to: ?');
+  });
+
+  it('shows the facts that were never a hint from the start', () => {
+    only('Watering Hole');
+    expect(facts().join(' ')).toContain('2 x 3 tiles');
+    expect(facts().join(' ')).toContain('Items: 2');
+    expect(facts().join(' ')).toContain('Water');
+  });
+
+  it('says nothing about doors', () => {
+    only('Watering Hole');
+    expect(facts().join(' ')).not.toMatch(/door/i);
+  });
+
+  it('fills a fact in as its hint arrives', () => {
+    only('Volcano Room');
+    click('button[data-action=skip]');
+    expect(facts()).toContain('Area: Norfair');
+    expect(facts()).toContain('Enemies: ?');
+  });
+
+  it('turns the name into its hangman shape on the last hint', () => {
+    only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
+    expect(q('[data-role=room-name]').textContent).toBe('V______ R___');
+  });
+
+  it('names the room once it is over', () => {
+    only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    expect(q('[data-role=room-name]').textContent).toBe('Volcano Room');
+  });
+
+  it('names it straight away when solved', () => {
+    only('Volcano Room');
+    type('Volcano Room');
+    click('button[data-action=guess]');
+    expect(q('[data-role=room-name]').textContent).toBe('Volcano Room');
+  });
+
+  it('offers a prefilled issue link once the room is named', () => {
+    only('Volcano Room');
+    expect(root.querySelector('a[data-action=suggest-alias]')).toBeNull();
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    const link = q<HTMLAnchorElement>('a[data-action=suggest-alias]');
+    expect(link.href).toContain(ALIAS_ISSUE_BASE);
+    expect(new URL(link.href).searchParams.get('title')).toContain('Volcano Room');
+  });
+
+  /** The picture stands in for the map, so listing it again as text says nothing. */
+  it('does not list the room picture as a fact', () => {
+    only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    expect(facts().join(' ')).not.toMatch(/room itself|in place of the map/i);
+  });
+});
+
+describe('finishing a room with the keyboard', () => {
+  const press = (key: string) => {
+    const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    q<HTMLInputElement>('input[name=answer]').dispatchEvent(e);
+    return e;
+  };
+
+  /** The box used to be disabled once the room ended, and a disabled input gets no keydown. */
+  it('advances on Enter after the last guess is spent', () => {
+    const app = mount();
+    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
+    type('definitely not a room');
+    press('Enter');
+    type('The Moat');
+    press('Enter');
+    expect(app.session.state()).not.toBe('guessing');
+    press('Enter');
+    expect(app.session.state()).toBe('guessing');
+  });
+
+  it('leaves the box usable so it can still take the key', () => {
+    mount();
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    expect(q<HTMLInputElement>('input[name=answer]').disabled).toBe(false);
+  });
+});
+
+describe('choosing a suggestion', () => {
+  const press = (key: string) => {
+    const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    q<HTMLInputElement>('input[name=answer]').dispatchEvent(e);
+    return e;
+  };
+  const items = () => [...root.querySelectorAll('[data-role=suggestions] li')];
+  const selected = () => items().findIndex((li) => li.getAttribute('aria-selected') === 'true');
+
+  it('starts on the first suggestion', () => {
+    mount();
+    type('brinstar');
+    expect(items().length).toBeGreaterThan(1);
+    expect(selected()).toBe(0);
+  });
+
+  it('moves down and up the list', () => {
+    mount();
+    type('brinstar');
+    press('ArrowDown');
+    expect(selected()).toBe(1);
+    press('ArrowUp');
+    expect(selected()).toBe(0);
+  });
+
+  it('stops at the ends rather than wrapping', () => {
+    mount();
+    type('brinstar');
+    press('ArrowUp');
+    expect(selected()).toBe(0);
+    for (let i = 0; i < 20; i += 1) press('ArrowDown');
+    expect(selected()).toBe(items().length - 1);
+  });
+
+  it('completes whichever one is selected on Tab', () => {
+    mount();
+    type('brinstar');
+    const second = items()[1]?.textContent ?? '';
+    press('ArrowDown');
+    press('Tab');
+    expect(q<HTMLInputElement>('input[name=answer]').value).toBe(second);
+  });
+
+  it('completes on click', () => {
+    mount();
+    type('brinstar');
+    const third = items()[2]?.textContent ?? '';
+    (items()[2] as HTMLElement).click();
+    expect(q<HTMLInputElement>('input[name=answer]').value).toBe(third);
+  });
+
+  it('goes back to the first suggestion when the text changes', () => {
+    mount();
+    type('brinstar');
+    press('ArrowDown');
+    type('brinstar m');
+    expect(selected()).toBe(0);
   });
 });

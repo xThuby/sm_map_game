@@ -1,5 +1,5 @@
-import { createSession, MAX_GUESSES } from '../game/session';
-import type { Hint, Session } from '../game/session';
+import { createSession, MAX_GUESSES, ROUND_LENGTH, nameHint } from '../game/session';
+import type { HintKind, Session } from '../game/session';
 import { buildNameIndex, autocomplete } from '../game/matching';
 import { loadRooms, guessableRooms } from '../rooms';
 import { pixelRenderer } from '../render/pixelRenderer';
@@ -100,10 +100,13 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
           <button data-action="next" hidden>Next room</button>
           <button data-action="new-round" hidden>Start another round</button>
         </p>
-        <ul data-role="suggestions"></ul>
+        <ul data-role="suggestions" style="list-style:none;padding:0;margin:4px 0"></ul>
         <p data-role="verdict"></p>
-        <dl data-role="hints"></dl>
-        <div data-role="reveal"></div>
+        <div data-role="facts">
+          <p data-role="room-name" style="font-weight:bold;font-size:1.2em"></p>
+          <ul data-role="fact-list"></ul>
+          <p data-role="alias-link"></p>
+        </div>
         <section data-role="summary" hidden></section>
       </div>
     </div>
@@ -120,8 +123,9 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   const input = el<HTMLInputElement>('input[name=answer]');
   const suggestions = el<HTMLUListElement>('[data-role=suggestions]');
   const verdict = el<HTMLParagraphElement>('[data-role=verdict]');
-  const hintList = el<HTMLDListElement>('[data-role=hints]');
-  const reveal = el<HTMLDivElement>('[data-role=reveal]');
+  const roomName = el<HTMLParagraphElement>('[data-role=room-name]');
+  const factList = el<HTMLUListElement>('[data-role=fact-list]');
+  const aliasLink = el<HTMLParagraphElement>('[data-role=alias-link]');
   const score = el<HTMLParagraphElement>('[data-role=score]');
   const guessButton = el<HTMLButtonElement>('button[data-action=guess]');
   const skipButton = el<HTMLButtonElement>('button[data-action=skip]');
@@ -155,7 +159,9 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     allPars(guessableRooms(), settings, PAR_OVERRIDES).map((p) => [p.room.id, p.par]),
   );
 
-  const topSuggestion = () => autocomplete(input.value, index, 1)[0] ?? null;
+  /** Which suggestion the arrows have landed on. Reset whenever the text changes. */
+  let suggestionAt = 0;
+  const currentSuggestions = () => autocomplete(input.value, index, SUGGESTION_LIMIT);
 
   /** Enter on an empty box is as likely a stray keypress as a decision, so it asks first. */
   let skipArmed = false;
@@ -215,8 +221,9 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   }
 
   function drawStatus(): void {
-    const { asked, solved, guessesUsed } = session.score();
-    score.textContent = `Solved ${solved} of ${asked} — ${plural(guessesUsed, 'guess')} used`;
+    // Where you are in the round. How it went is the summary's job.
+    const place = Math.min(session.roundResults().length + 1, ROUND_LENGTH);
+    score.textContent = `Room ${place} of ${ROUND_LENGTH}`;
     par.textContent = `Par ${parByRoom.get(viewedRoom().id) ?? 1}`;
 
     const back = lookingBack > 0;
@@ -230,7 +237,6 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     // Looking back is read-only: that room is already finished with.
     const roundOver = session.roundComplete();
     input.hidden = back;
-    input.disabled = over;
     guessButton.hidden = back || over;
     skipButton.hidden = back || over;
     nextButton.hidden = back || !over || roundOver;
@@ -299,59 +305,96 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   }
 
 
-  function drawHints(): void {
-    hintList.innerHTML = session.hints().map((h: Hint) => `
-      <dt>${h.label}</dt>
-      <dd>${h.imageUrl ? 'Shown in place of the map.' : h.text}</dd>`).join('');
-  }
+  /**
+   * One panel for everything known about the room. Facts a hint would give away read "?"
+   * until that hint arrives; facts that were never hints are shown from the start, because
+   * they are already on the map. The name sits above as ??? until the last hint sketches it.
+   *
+   * The room's own picture is not listed: it stands in for the map, and naming it as a fact
+   * as well would say nothing.
+   */
+  function drawFacts(): void {
+    const room = viewedRoom();
+    const over = lookingBack > 0 || session.state() !== 'guessing';
+    const shown = new Set(session.hints().map((h) => h.kind));
+    const known = (kind: HintKind, value: string) =>
+      (over || lookingBack > 0 || shown.has(kind) ? value : '?');
 
-  function drawSuggestions(): void {
-    if (session.state() !== 'guessing' || input.value.trim() === '') {
-      suggestions.innerHTML = '';
-      return;
-    }
-    suggestions.innerHTML = autocomplete(input.value, index, SUGGESTION_LIMIT)
-      .map((e) => `<li>${e.name}${e.isAlias ? ` (also ${e.room.name})` : ''}</li>`)
-      .join('');
-  }
+    roomName.textContent = over
+      ? room.name
+      : (shown.has('name') ? nameHint(room.name) : '???');
 
-  function drawReveal(): void {
-    if (session.state() === 'guessing') { reveal.innerHTML = ''; return; }
+    const enemies = room.enemies.length === 0
+      ? 'none'
+      : room.enemies.map((e) => (e.quantity > 1 ? `${e.quantity} ${e.name}` : e.name)).join(', ');
 
-    const room = session.current();
-    // Every room in the group paints identically, so any of them was a fair answer. Taken
-    // from the session rather than the last grade, which is empty after a skip.
-    const twins = session.group().filter((r) => r.id !== room.id);
-
-    // Only state what is there. A room that is not heated simply says nothing about heat.
+    const twins = over ? session.group().filter((r) => r.id !== room.id) : [];
     const facts = [
-      `${room.width} x ${room.height} tiles, ${plural(room.tiles.length, 'tile')} on the map`,
-      `${plural(room.doors.length, 'door')}: ${room.doors.map((d) => d.direction).join(', ')}`,
+      `Area: ${known('area', room.area)}`,
+      `Enemies: ${known('enemies', enemies)}`,
+      `Connects to: ${known('neighbour', room.neighbours.join(', ') || 'nothing')}`,
+      `Size: ${room.width} x ${room.height} tiles`,
       room.itemCount > 0
-        ? `${plural(room.itemCount, 'item')}${room.hasHiddenItem ? ', one hidden' : ''}`
+        ? `Items: ${room.itemCount}${room.hasHiddenItem ? ' (one hidden)' : ''}`
         : '',
       room.heated ? 'Heated' : '',
       room.liquid !== 'none' ? room.liquid.charAt(0).toUpperCase() + room.liquid.slice(1) : '',
       room.utilities.length ? room.utilities.join(', ') : '',
-      room.aliases.length ? `Also known as: ${room.aliases.join(', ')}` : '',
+      over && room.aliases.length ? `Also known as: ${room.aliases.join(', ')}` : '',
       twins.length ? `Looks identical to: ${twins.map((r) => r.name).join(', ')}` : '',
     ].filter(Boolean);
 
-    reveal.innerHTML = `
-      <p><strong>${room.name}</strong></p>
-      <ul>${facts.map((f) => `<li>${f}</li>`).join('')}</ul>
-      <p><a data-action="suggest-alias" href="${aliasIssueUrl(room)}"
-            target="_blank" rel="noopener">Know this room by another name? Suggest it</a></p>`;
+    factList.innerHTML = facts.map((f) => `<li data-role="fact">${f}</li>`).join('');
+    aliasLink.innerHTML = over
+      ? `<a data-action="suggest-alias" href="${aliasIssueUrl(room)}"
+           target="_blank" rel="noopener">Know this room by another name? Suggest it</a>`
+      : '';
   }
+
+
+  function drawSuggestions(): void {
+    if (session.state() !== 'guessing' || lookingBack > 0 || input.value.trim() === '') {
+      suggestions.innerHTML = '';
+      return;
+    }
+    const matches = currentSuggestions();
+    suggestionAt = Math.min(suggestionAt, Math.max(matches.length - 1, 0));
+    suggestions.innerHTML = matches
+      .map((e, i) => `<li role="option" data-index="${i}"
+        aria-selected="${i === suggestionAt}"
+        style="cursor:pointer;padding:1px 4px;${
+  i === suggestionAt ? 'background:#234;' : ''}">${e.name}</li>`)
+      .join('');
+  }
+
+  /** Puts a suggestion in the box, ready to be sent. */
+  function takeSuggestion(at: number): void {
+    const match = currentSuggestions()[at];
+    if (!match) return;
+    input.value = match.name;
+    suggestionAt = 0;
+    drawSuggestions();
+    input.focus();
+  }
+
+  function moveSelection(step: number): void {
+    const matches = currentSuggestions();
+    if (matches.length === 0) return;
+    // Stops at the ends: wrapping past the last one is disorienting in a short list.
+    suggestionAt = Math.min(Math.max(suggestionAt + step, 0), matches.length - 1);
+    drawSuggestions();
+  }
+
+
+
 
   function redraw(): void {
     recordOutcome();
     drawStage();
     drawStatus();
     drawSummary();
-    drawHints();
+    drawFacts();
     drawSuggestions();
-    drawReveal();
   }
 
   function standDown(): void {
@@ -365,6 +408,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     session.next();
     recorded = false;
     input.value = '';
+    suggestionAt = 0;
     lookingBack = 0;
     showMap = false;
     standDown();
@@ -435,7 +479,13 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   });
   input.addEventListener('input', () => {
     standDown();
+    // New text means a new list; start at the top of it again.
+    suggestionAt = 0;
     drawSuggestions();
+  });
+  suggestions.addEventListener('click', (event) => {
+    const item = (event.target as HTMLElement).closest('li[data-index]');
+    if (item) takeSuggestion(Number(item.getAttribute('data-index')));
   });
   input.addEventListener('blur', standDown);
 
@@ -449,12 +499,17 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       return;
     }
 
-    if (event.key === 'Tab') {
-      const top = topSuggestion();
-      if (!top) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (currentSuggestions().length === 0) return;
       event.preventDefault();
-      input.value = top.name;
-      drawSuggestions();
+      moveSelection(event.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      if (currentSuggestions().length === 0) return;
+      event.preventDefault();
+      takeSuggestion(suggestionAt);
       return;
     }
 
