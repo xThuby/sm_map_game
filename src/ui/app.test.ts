@@ -742,6 +742,27 @@ describe('rounds', () => {
     expect(app.session.state()).toBe('guessing');
   });
 
+  it("clears the last room's verdict when the next round starts", () => {
+    const app = mount();
+    playPerfectRound(app);
+    expect(q('[data-role=verdict]').textContent).toBe('Correct.');
+    click('button[data-action=new-round]');
+    expect(q('[data-role=verdict]').textContent).toBe('');
+  });
+
+  it('starts the next round on a clean board', () => {
+    const app = mount();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) { giveUp(); click('button[data-action=next]'); }
+    wrongGuess(app);
+    giveUp();
+    click('button[data-action=new-round]');
+    expect(q('[data-role=verdict]').textContent).toBe('');
+    expect(q('[data-role=tried]').textContent).toBe('');
+    expect(q<HTMLInputElement>('input[name=answer]').value).toBe('');
+    expect(q('[data-role=total]').textContent).toBe('');
+    expect(q('[data-role=points]').textContent).toContain(String(STARTING_POINTS));
+  });
+
   it('draws a bar for every guess and one for a loss', () => {
     mount();
     playRound();

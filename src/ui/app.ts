@@ -489,15 +489,24 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     drawSuggestions();
   }
 
-  function advance(): void {
-    if (session.roundComplete()) return;
-    session.next();
+  /**
+   * Everything on screen that belongs to the room being left rather than the one arriving.
+   * Shared by the two ways of moving on, which had drifted apart: starting a new round left
+   * the last room's verdict sitting over the new one.
+   */
+  function clearBoard(): void {
     recorded = false;
     input.value = '';
     suggestionAt = 0;
     lookingBack = 0;
     showDiagram = false;
     verdict.textContent = '';
+  }
+
+  function advance(): void {
+    if (session.roundComplete()) return;
+    session.next();
+    clearBoard();
     drawRoom();
     redraw();
     input.focus();
@@ -559,10 +568,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   newRoundButton.addEventListener('click', () => {
     session.startRound();
     thisRound = emptyStats();
-    recorded = false;
-    input.value = '';
-    lookingBack = 0;
-    showDiagram = false;
+    clearBoard();
     drawRoom();
     redraw();
     input.focus();
