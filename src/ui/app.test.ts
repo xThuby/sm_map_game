@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mountApp, ALIAS_ISSUE_BASE, ZOOM_FACTOR, plural } from './app';
 import { loadRooms } from '../rooms';
-import { TOURNAMENT_SETTINGS } from '../render/renderer';
+import { TOURNAMENT_SETTINGS, MAX_TILE_SIZE, VIEWPORT } from '../render/renderer';
 import { MAX_GUESSES } from '../game/session';
 import type { Renderer } from '../render/renderer';
 
@@ -244,6 +244,56 @@ describe('moving on', () => {
       click('button[data-action=next]');
     }
     expect(q('[data-role=score]').textContent).toContain('3');
+  });
+});
+
+describe('fitting the room on screen', () => {
+  /**
+   * The renderer is handed a tile size chosen per room, so a twelve-tile-tall shaft is drawn
+   * smaller rather than running off the page. The whole room has to stay visible; you cannot
+   * identify what you cannot see.
+   */
+  it('draws a small room at full size', () => {
+    const sizes: number[] = [];
+    const recorder: Renderer = { render(_c, _r, s) { sizes.push(s.tileSize); } };
+    const root2 = document.createElement('div');
+    document.body.append(root2);
+    mountApp(root2, {
+      rooms: rooms.filter((r) => r.name === 'The Moat'),
+      settings: { ...TOURNAMENT_SETTINGS }, renderer: recorder, random: seeded(),
+    });
+    expect(sizes[0]).toBe(MAX_TILE_SIZE);
+  });
+
+  it('shrinks the tallest room in the game so it fits', () => {
+    const sizes: number[] = [];
+    const recorder: Renderer = { render(_c, _r, s) { sizes.push(s.tileSize); } };
+    const root2 = document.createElement('div');
+    document.body.append(root2);
+    mountApp(root2, {
+      rooms: rooms.filter((r) => r.name === 'Green Brinstar Main Shaft'),
+      settings: { ...TOURNAMENT_SETTINGS }, renderer: recorder, random: seeded(),
+    });
+    expect(sizes[0]).toBeLessThan(MAX_TILE_SIZE);
+    expect((sizes[0] as number) * 12).toBeLessThanOrEqual(VIEWPORT.height);
+  });
+
+  it('re-fits when the next room is a different shape', () => {
+    const sizes: number[] = [];
+    const recorder: Renderer = { render(_c, _r, s) { sizes.push(s.tileSize); } };
+    const root2 = document.createElement('div');
+    document.body.append(root2);
+    mountApp(root2, {
+      rooms, settings: { ...TOURNAMENT_SETTINGS }, renderer: recorder, random: seeded(),
+    });
+    for (let i = 0; i < 12; i += 1) {
+      root2.querySelector<HTMLButtonElement>('button[data-action=skip]')!.click();
+      root2.querySelector<HTMLButtonElement>('button[data-action=skip]')!.click();
+      root2.querySelector<HTMLButtonElement>('button[data-action=skip]')!.click();
+      root2.querySelector<HTMLButtonElement>('button[data-action=skip]')!.click();
+      root2.querySelector<HTMLButtonElement>('button[data-action=next]')!.click();
+    }
+    expect(new Set(sizes).size).toBeGreaterThan(1);
   });
 });
 

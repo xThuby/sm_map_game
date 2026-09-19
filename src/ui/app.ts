@@ -3,6 +3,7 @@ import type { Hint, Session } from '../game/session';
 import { buildNameIndex, autocomplete } from '../game/matching';
 import { loadRooms } from '../rooms';
 import { pixelRenderer } from '../render/pixelRenderer';
+import { fitTileSize, VIEWPORT } from '../render/renderer';
 import type { Renderer } from '../render/renderer';
 import type { RenderSettings, Room } from '../types';
 
@@ -111,6 +112,12 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   const nextButton = el<HTMLButtonElement>('button[data-action=next]');
 
   const topSuggestion = () => autocomplete(input.value, index, 1)[0] ?? null;
+
+  /** Each room is drawn as large as it will go without running off the page. */
+  function drawRoom(): void {
+    const room = session.current();
+    renderer.render(canvas, room, { ...settings, tileSize: fitTileSize(room, VIEWPORT) });
+  }
 
   /**
    * Click to magnify, move the pointer to pan, click again to stop. The stage keeps its size
@@ -243,7 +250,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     input.value = '';
     verdict.textContent = '';
     setZoom(false);
-    renderer.render(canvas, session.current(), settings);
+    drawRoom();
     redraw();
     input.focus();
   });
@@ -261,7 +268,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     }
   });
 
-  renderer.render(canvas, session.current(), settings);
+  drawRoom();
   redraw();
   return { session };
 }

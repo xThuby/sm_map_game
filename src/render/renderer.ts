@@ -1,5 +1,31 @@
 import type { RenderSettings, Room } from '../types';
 
+/**
+ * Tile sizes are whole multiples of 8, so every source pixel stays a whole number of screen
+ * pixels and the art never blurs.
+ */
+export const MAX_TILE_SIZE = 96;
+export const MIN_TILE_SIZE = 32;
+
+/** The box a room is drawn to fit inside. */
+export const VIEWPORT = { width: 760, height: 620 };
+
+/**
+ * The tile size that fits a room in the box, as large as it will go.
+ *
+ * Green Brinstar Main Shaft is twelve tiles tall, which at full size runs well past the fold
+ * and pushes everything else down the page. Scaling to fit keeps the whole room visible,
+ * which identifying it requires, and the click-to-zoom is there for detail.
+ */
+export function fitTileSize(
+  room: Pick<Room, 'width' | 'height'>,
+  viewport: { width: number; height: number },
+): number {
+  const limit = Math.min(viewport.width / room.width, viewport.height / room.height);
+  const steps = Math.floor(limit / 8) * 8;
+  return Math.min(Math.max(steps, MIN_TILE_SIZE), MAX_TILE_SIZE);
+}
+
 export interface Renderer {
   render(canvas: HTMLCanvasElement, room: Room, settings: RenderSettings): void;
 }
