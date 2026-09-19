@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createSession, shuffleBag, MAX_GUESSES, HINT_ORDER } from './session';
+import { createSession, shuffleBag, MAX_GUESSES, HINT_ORDER, nameHint } from './session';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS } from '../render/renderer';
 
@@ -139,7 +139,7 @@ describe('hints', () => {
     return new Map(s.hints().map((h) => [h.kind, h.text]));
   };
 
-  it('names the vanilla area first', () => {
+  it('names the original map area first', () => {
     expect(allHints('Volcano Room').get('area')).toContain('Norfair');
   });
 
@@ -151,14 +151,19 @@ describe('hints', () => {
     expect(allHints('Crateria Map Room').get('enemies')).toMatch(/no enemies/i);
   });
 
-  it('names a vanilla neighbour third', () => {
+  it('names every connecting room third, without labouring where they come from', () => {
     const text = allHints('Volcano Room').get('neighbour') ?? '';
-    expect(['Kronic Boost Room', 'Spiky Platforms Tunnel'].some((n) => text.includes(n)))
-      .toBe(true);
+    for (const n of ['Kronic Boost Room', 'Spiky Platforms Tunnel']) expect(text).toContain(n);
+    expect(text).not.toMatch(/original map|vanilla/i);
   });
 
-  it('offers the room diagram last', () => {
+  it('offers the room diagram fourth', () => {
     expect(allHints('Volcano Room').get('diagram')).toContain('VolcanoRoom_116.png');
+  });
+
+  /** Last of all, and the most generous: the shape of the name itself. */
+  it('sketches the name last', () => {
+    expect(allHints('Volcano Room').get('name')).toBe('V______ R___');
   });
 
   it('gives a diagram url that is absolute and pinned', () => {
@@ -206,5 +211,38 @@ describe('scoring and progress', () => {
   it('refuses to move on while the room is still in play', () => {
     const s = make();
     expect(() => s.next()).toThrow();
+  });
+});
+
+describe('nameHint', () => {
+  it('shows the first letter of each word and hides the rest', () => {
+    expect(nameHint('Landing Site')).toBe('L______ S___');
+    expect(nameHint('The Moat')).toBe('T__ M___');
+  });
+
+  it('keeps the punctuation, which is part of the shape', () => {
+    expect(nameHint("Crocomire's Room")).toBe("C________'_ R___");
+  });
+
+  /** A word is what the spaces separate, so a hyphen does not start a new one. */
+  it('gives away only one letter of a hyphenated word', () => {
+    expect(nameHint('Pre-Map Flyway')).toBe('P__-___ F_____');
+  });
+
+  it('leaves a single-character word as itself', () => {
+    expect(nameHint('Metroid Room 1')).toBe('M______ R___ 1');
+  });
+
+  it('never leaks a letter beyond the first of a word', () => {
+    for (const room of loadRooms()) {
+      const masked = nameHint(room.name);
+      expect(masked).toHaveLength(room.name.length);
+      for (const [i, ch] of [...masked].entries()) {
+        if (ch === '_') continue;
+        const before = room.name[i - 1];
+        const isWordStart = i === 0 || !/[A-Za-z0-9]/.test(before ?? '');
+        expect(isWordStart || !/[A-Za-z0-9]/.test(ch), `${room.name} at ${i}`).toBe(true);
+      }
+    }
   });
 });

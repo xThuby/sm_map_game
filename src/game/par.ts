@@ -1,5 +1,6 @@
 import { visualSignature } from '../signature';
 import { MAX_GUESSES } from './session';
+import { loadRooms } from '../rooms';
 import overrideData from '../../data/par-overrides.json';
 import type { RenderSettings, Room } from '../types';
 
@@ -108,8 +109,9 @@ export function allPars(
   overrides: Record<string, ParOverride> = {},
 ): ParBreakdown[] {
   // An override keyed by a room that does not exist, or set outside the guesses a player
-  // actually has, would otherwise quietly do nothing.
-  const names = new Set(pool.map((r) => r.name));
+  // actually has, would otherwise quietly do nothing. Checked against the whole game rather
+  // than the pool, which may be a filtered subset that legitimately lacks the room.
+  const names = new Set(loadRooms().map((r) => r.name));
   for (const [name, value] of Object.entries(overrides)) {
     if (!names.has(name)) throw new Error(`Par override for unknown room ${JSON.stringify(name)}`);
     if (!Number.isInteger(value.par) || value.par < 1 || value.par > MAX_PAR) {

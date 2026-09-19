@@ -7,18 +7,40 @@ import type { RenderSettings, Room } from '../types';
  * Five guesses, each spent one costing you the next hint. Modelled on the daily
  * guess-the-thing games: skipping buys a hint rather than abandoning the room.
  *
- * Four hints over five guesses means the last hint is on screen for one final guess, rather
+ * Five hints over six guesses means the last hint is on screen for one final guess, rather
  * than arriving with the answer where it could not be acted on.
  */
-export const MAX_GUESSES = 5;
+export const MAX_GUESSES = 6;
 
-export type HintKind = 'area' | 'enemies' | 'neighbour' | 'diagram';
+export type HintKind = 'area' | 'enemies' | 'neighbour' | 'diagram' | 'name';
 
-/** Least to most generous. The diagram gives the room away, so it comes last. */
-export const HINT_ORDER: HintKind[] = ['area', 'enemies', 'neighbour', 'diagram'];
+/** Least to most generous. The name itself is the last thing worth giving away. */
+export const HINT_ORDER: HintKind[] = ['area', 'enemies', 'neighbour', 'diagram', 'name'];
 
 /** How many hints are showing once this many guesses have been spent: one each. */
-const HINTS_AFTER: number[] = [0, 1, 2, 3, 4, HINT_ORDER.length];
+const HINTS_AFTER: number[] = [0, 1, 2, 3, 4, 5, HINT_ORDER.length];
+
+/**
+ * The name with everything but the first letter of each word struck out, as in hangman.
+ *
+ * A word is what the spaces separate, so "Pre-Map" gives away only its P. Punctuation stays
+ * visible: it is not a letter to guess, and the shape of the name is the hint.
+ */
+export function nameHint(name: string): string {
+  return name
+    .split(' ')
+    .map((word) => {
+      let first = true;
+      return [...word]
+        .map((ch) => {
+          if (!/[A-Za-z0-9]/.test(ch)) return ch;
+          if (first) { first = false; return ch; }
+          return '_';
+        })
+        .join('');
+    })
+    .join(' ');
+}
 
 const CDN = 'https://cdn.jsdelivr.net/gh/vg-json-data/sm-json-data';
 /** Pinned so the URL is immutable and the CDN can cache it indefinitely. */
@@ -63,10 +85,10 @@ export function shuffleBag<T>(items: readonly T[], random: () => number): Bag<T>
   };
 }
 
-function hintFor(kind: HintKind, room: Room, random: () => number): Hint {
+function hintFor(kind: HintKind, room: Room): Hint {
   switch (kind) {
     case 'area':
-      return { kind, label: 'Vanilla area', text: room.area };
+      return { kind, label: 'Original map area', text: room.area };
     case 'enemies': {
       if (room.enemies.length === 0) {
         return { kind, label: 'Enemies', text: 'This room has no enemies.' };
@@ -76,13 +98,12 @@ function hintFor(kind: HintKind, room: Room, random: () => number): Hint {
         .join(', ');
       return { kind, label: 'Enemies', text: list };
     }
-    case 'neighbour': {
-      if (room.neighbours.length === 0) {
-        return { kind, label: 'Connects to', text: 'Nothing, on the vanilla map.' };
-      }
-      const pick = room.neighbours[Math.floor(random() * room.neighbours.length)] as string;
-      return { kind, label: 'Connects to', text: `${pick}, on the vanilla map.` };
-    }
+    case 'neighbour':
+      return {
+        kind,
+        label: 'Connects to',
+        text: room.neighbours.length === 0 ? 'Nothing' : room.neighbours.join(', '),
+      };
     case 'diagram':
       return {
         kind,
@@ -90,6 +111,8 @@ function hintFor(kind: HintKind, room: Room, random: () => number): Hint {
         text: room.diagram ?? 'No diagram for this room.',
         ...(room.diagram ? { imageUrl: `${CDN}@${SM_JSON_COMMIT}/${room.diagram}` } : {}),
       };
+    case 'name':
+      return { kind, label: 'The name', text: nameHint(room.name) };
   }
 }
 
@@ -156,7 +179,7 @@ export function createSession(options: SessionOptions): Session {
     const shown = state() === 'lost'
       ? HINT_ORDER.length
       : (HINTS_AFTER[Math.min(spent, HINTS_AFTER.length - 1)] as number);
-    return HINT_ORDER.slice(0, shown).map((kind) => hintFor(kind, room, random));
+    return HINT_ORDER.slice(0, shown).map((kind) => hintFor(kind, room));
   };
 
   const requirePlaying = () => {

@@ -305,6 +305,36 @@ describe('fitting the room on screen', () => {
   });
 });
 
+describe('par', () => {
+  /** A label telling the player how hard this room ought to be. Nothing else uses it. */
+  it('shows the par for the room on screen', () => {
+    only('Landing Site');
+    expect(q('[data-role=par]').textContent).toMatch(/par 1/i);
+  });
+
+  /** Par is over the whole game, not this session's pool: a filtered session is no easier. */
+  it('shows a harder room as harder, even asked about on its own', () => {
+    only('Wave Beam Room');
+    expect(q('[data-role=par]').textContent).toMatch(/par 4/i);
+  });
+
+  it('shows it straight away, before any guess', () => {
+    const app = mount();
+    expect(q('[data-role=par]').textContent).toMatch(/par \d/i);
+    expect(app.session.guessesLeft()).toBe(MAX_GUESSES);
+  });
+
+  it('follows the room being looked back at', () => {
+    mount();
+    const shownFirst = q('[data-role=par]').textContent;
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    click('button[data-action=next]');
+    q<HTMLInputElement>('input[name=answer]').blur();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+    expect(q('[data-role=par]').textContent).toBe(shownFirst);
+  });
+});
+
 describe('the two columns', () => {
   /**
    * A tall shaft at this scale runs far past the fold, which pushed the answer box off

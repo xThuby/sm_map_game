@@ -1,9 +1,10 @@
 import { createSession } from '../game/session';
 import type { Hint, Session } from '../game/session';
 import { buildNameIndex, autocomplete } from '../game/matching';
-import { loadRooms } from '../rooms';
+import { loadRooms, guessableRooms } from '../rooms';
 import { pixelRenderer } from '../render/pixelRenderer';
 import { fitTileSize, VIEWPORT } from '../render/renderer';
+import { allPars, PAR_OVERRIDES } from '../game/par';
 import type { Renderer } from '../render/renderer';
 import type { RenderSettings, Room } from '../types';
 import type { PlayedRoom } from '../game/session';
@@ -75,6 +76,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
         <h1>SM Map Rando Trainer</h1>
         <p>Identify the room from its Map Rando map tiles.</p>
         <p data-role="score"></p>
+        <p data-role="par"></p>
         <p>
           <button data-action="toggle-view" hidden>Show the map</button>
           <span data-role="viewing"></span>
@@ -122,6 +124,19 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   const nextButton = el<HTMLButtonElement>('button[data-action=next]');
   const toggleButton = el<HTMLButtonElement>('button[data-action=toggle-view]');
   const viewing = el<HTMLSpanElement>('[data-role=viewing]');
+  const par = el<HTMLParagraphElement>('[data-role=par]');
+
+  /**
+   * How many guesses each room ought to take, worked out once. It is shown to the player as
+   * a difficulty label and nothing else: rooms are drawn at random, not chosen by par.
+   *
+   * Worked out over every room that can be asked about, not this session's pool. A session
+   * narrowed to one area does not make its rooms easier to name, because the player may
+   * still answer with any room in the game.
+   */
+  const parByRoom = new Map(
+    allPars(guessableRooms(), settings, PAR_OVERRIDES).map((p) => [p.room.id, p.par]),
+  );
 
   const topSuggestion = () => autocomplete(input.value, index, 1)[0] ?? null;
 
@@ -185,6 +200,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   function drawStatus(): void {
     const { asked, solved, guessesUsed } = session.score();
     score.textContent = `Solved ${solved} of ${asked} — ${plural(guessesUsed, 'guess')} used`;
+    par.textContent = `Par ${parByRoom.get(viewedRoom().id) ?? 1}`;
 
     const back = lookingBack > 0;
     const over = session.state() !== 'guessing';

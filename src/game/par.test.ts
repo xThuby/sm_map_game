@@ -175,3 +175,20 @@ describe('the shipped overrides', () => {
     expect(() => allPars(pool, settings, PAR_OVERRIDES)).not.toThrow();
   });
 });
+
+describe('overrides against a filtered pool', () => {
+  /**
+   * A session may be narrowed to one area, or one room. An override for a room outside that
+   * subset is not a mistake, so validation looks at the whole game rather than the pool.
+   */
+  it('accepts an override for a room the pool happens not to contain', () => {
+    const oneRoom = [roomByName('Volcano Room')!];
+    expect(() => allPars(oneRoom, settings, PAR_OVERRIDES)).not.toThrow();
+  });
+
+  it('still rejects one for a room the game does not contain', () => {
+    const oneRoom = [roomByName('Volcano Room')!];
+    expect(() => allPars(oneRoom, settings, { 'Nowhere Room': { par: 4, why: 'x' } }))
+      .toThrow(/Nowhere Room/);
+  });
+});
