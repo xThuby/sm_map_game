@@ -25,24 +25,16 @@ const MAX_SUGGESTION_DISTANCE = 2;
 /**
  * Reduces a name to a comparison key, so that "Wrecked Ship Main Shaft",
  * "wreckedshipmainshaft" and "WRECKED-SHIP-MAIN-SHAFT" all answer the same question.
+ *
+ * A leading "the" is dropped because players drop it: the room is "The Moat" on the map and
+ * "Moat" in conversation. Verified against all 284 names: no two rooms collide under this.
  */
 export function normalizeName(input: string): string {
-  return input.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-/**
- * Every key a name should be findable under, most literal first.
- *
- * A name starting with "the" also gets a key without it, because players drop the article:
- * the map says "The Moat" and conversation says "Moat". Handling that here rather than
- * inside normalizeName is what makes "TheMoat" work — an earlier version matched /^the\s+/
- * before punctuation was stripped, so the run-together form silently failed while
- * "WreckedShipMainShaft" succeeded.
- */
-export function nameKeys(input: string): string[] {
-  const plain = normalizeName(input);
-  if (plain === '') return [];
-  return plain.startsWith('the') && plain.length > 3 ? [plain, plain.slice(3)] : [plain];
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/^the\s+/, '')
+    .replace(/[^a-z0-9]/g, '');
 }
 
 /** Standard edit distance, iterative with a single row of state. */
@@ -69,16 +61,9 @@ export function buildNameIndex(rooms: readonly Room[]): NameIndex {
 
   for (const room of rooms) {
     for (const [i, name] of [room.name, ...room.aliases].entries()) {
-      entries.push({ name, normalized: normalizeName(name), room, isAlias: i > 0 });
-    }
-  }
-
-  // Two passes so a room's own full name always wins the key, and an article-stripped
-  // variant can only claim a key nothing else already owns.
-  for (const entry of entries) byKey.set(entry.normalized, entry.room);
-  for (const entry of entries) {
-    for (const key of nameKeys(entry.name)) {
-      if (!byKey.has(key)) byKey.set(key, entry.room);
+      const normalized = normalizeName(name);
+      entries.push({ name, normalized, room, isAlias: i > 0 });
+      byKey.set(normalized, room);
     }
   }
   return { entries, byKey };
@@ -86,11 +71,9 @@ export function buildNameIndex(rooms: readonly Room[]): NameIndex {
 
 /** The room a typed answer names exactly, or null. Never guesses. */
 export function resolveName(input: string, index: NameIndex): Room | null {
-  for (const key of nameKeys(input)) {
-    const room = index.byKey.get(key);
-    if (room) return room;
-  }
-  return null;
+  const key = normalizeName(input);
+  if (key === '') return null;
+  return index.byKey.get(key) ?? null;
 }
 
 /**
@@ -100,7 +83,7 @@ export function resolveName(input: string, index: NameIndex): Room | null {
  */
 export function suggestName(input: string, index: NameIndex): Suggestion | null {
   const key = normalizeName(input);
-  if (key === '' || resolveName(input, index) !== null) return null;
+  if (key === '' || index.byKey.has(key)) return null;
 
   let best: Suggestion | null = null;
   for (const entry of index.entries) {

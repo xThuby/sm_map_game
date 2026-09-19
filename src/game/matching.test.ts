@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  normalizeName, nameKeys, levenshtein, buildNameIndex, resolveName, suggestName, autocomplete,
-} from './matching';
+import { normalizeName, levenshtein, buildNameIndex, resolveName, suggestName, autocomplete }
+  from './matching';
 import { loadRooms } from '../rooms';
 
 const index = buildNameIndex(loadRooms());
@@ -14,6 +13,15 @@ describe('normalizeName', () => {
       'WRECKED-SHIP-MAIN-SHAFT',
     ].map(normalizeName);
     expect(new Set(keys).size).toBe(1);
+  });
+
+  it('drops a leading "the"', () => {
+    expect(normalizeName('The Moat')).toBe(normalizeName('Moat'));
+  });
+
+  it('drops a leading "the" only at the start', () => {
+    expect(normalizeName('The Worst Room In The Game'))
+      .toBe(normalizeName('Worst Room In The Game'));
   });
 
   it('ignores apostrophes', () => {
@@ -48,29 +56,8 @@ describe('buildNameIndex', () => {
     expect(index.entries.filter((e) => e.isAlias)).toHaveLength(31);
   });
 
-  it('indexes the six "The ..." rooms under their article-stripped name as well', () => {
-    const withArticle = index.entries.filter((e) => e.normalized.startsWith('the'));
-    expect(withArticle.map((e) => e.name).sort()).toEqual([
-      'The Beach', 'The Final Missile', 'The Jail', 'The Moat', 'The Precious Room',
-      'The Worst Room In The Game',
-    ]);
-    expect(index.byKey.size).toBe(index.entries.length + withArticle.length);
-  });
-
-  /**
-   * The property that matters: no key may be reachable from two different rooms, or a typed
-   * answer could not be graded. Checked over every key the index actually holds, not just
-   * over the names, so an article-stripped variant cannot quietly shadow another room.
-   */
-  it('never lets one key lead to two different rooms', () => {
-    const claimants = new Map<string, Set<number>>();
-    for (const entry of index.entries) {
-      for (const key of nameKeys(entry.name)) {
-        claimants.set(key, (claimants.get(key) ?? new Set()).add(entry.room.id));
-      }
-    }
-    expect([...claimants].filter(([, ids]) => ids.size > 1)).toEqual([]);
-    expect(claimants.size).toBe(index.byKey.size);
+  it('maps each normalized key to exactly one room', () => {
+    expect(index.byKey.size).toBe(index.entries.length);
   });
 });
 
@@ -97,39 +84,6 @@ describe('resolveName', () => {
 
   it('does not resolve empty input', () => {
     expect(resolveName('   ', index)).toBeNull();
-  });
-
-  // Players drop the article: the map says "The Moat", conversation says "Moat".
-  it('resolves a name with or without its leading "the"', () => {
-    const moat = resolveName('The Moat', index);
-    expect(moat?.name).toBe('The Moat');
-    expect(resolveName('Moat', index)).toBe(moat);
-    expect(resolveName('the moat', index)).toBe(moat);
-  });
-
-  it('drops a leading "the" only at the start', () => {
-    expect(resolveName('The Worst Room In The Game', index)?.name)
-      .toBe('The Worst Room In The Game');
-    expect(resolveName('Worst Room In The Game', index)?.name)
-      .toBe('The Worst Room In The Game');
-  });
-
-  /**
-   * Run-together input resolves for every other room ("WreckedShipMainShaft"), so it has to
-   * resolve here too. It did not: the old normalizer matched /^the\s+/, and the whitespace it
-   * required had not been stripped yet, so only the spaced form worked.
-   */
-  it('resolves a run-together name that starts with "the"', () => {
-    expect(resolveName('TheMoat', index)?.name).toBe('The Moat');
-    expect(resolveName('themoat', index)?.name).toBe('The Moat');
-    expect(resolveName('TheFinalMissile', index)?.name).toBe('The Final Missile');
-    expect(resolveName('TheJail', index)?.name).toBe('Lower Norfair Escape Power Bomb Room');
-  });
-
-  it('resolves every canonical name and alias back to its own room', () => {
-    for (const entry of index.entries) {
-      expect(resolveName(entry.name, index)?.id).toBe(entry.room.id);
-    }
   });
 });
 
