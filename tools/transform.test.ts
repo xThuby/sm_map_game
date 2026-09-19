@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   areaFromIndex, boundingBox, normalizeTile, deriveItemCount, deriveHasHiddenItem,
-  deriveUtilities, deriveHasElevator, deriveOneWay, deriveAliases, buildRoom,
+  deriveUtilities, deriveHasElevator, deriveOneWay, deriveAliases, deriveNeighbours, buildRoom,
 } from './transform';
-import type { RawGeoRoom, RawMapTile, RawTileRoom } from './transform';
+import type { RawGeoRoom, RawMapTile, RawTileRoom, VanillaDoor } from './transform';
 import type { Tile } from '../src/types';
 
 const tile = (over: Partial<Tile> = {}): Tile => ({
@@ -230,5 +230,47 @@ describe('buildRoom aliases', () => {
 
   it('defaults to no aliases', () => {
     expect(buildRoom(rawTiles(), rawGeo()).aliases).toEqual([]);
+  });
+});
+
+describe('deriveNeighbours', () => {
+  it('pairs rooms that share a vanilla door', () => {
+    // exit_ptr 100 in room A leads to entrance in room B, and back again.
+    const a = rawGeo({ room_id: 1, name: 'A', doors: [
+      { direction: 'right', x: 0, y: 0, subtype: 'normal', exit_ptr: 100, entrance_ptr: 200 }] });
+    const b = rawGeo({ room_id: 2, name: 'B', doors: [
+      { direction: 'left', x: 0, y: 0, subtype: 'normal', exit_ptr: 200, entrance_ptr: 100 }] });
+    const map = { rooms: [[0, 0], [0, 0]] as [number, number][],
+                  doors: [[[100, 200], [200, 100], true]] as VanillaDoor[] };
+    expect(deriveNeighbours([a, b], map)).toEqual({ 1: [2], 2: [1] });
+  });
+
+  it('ignores a door that loops back into the same room', () => {
+    const a = rawGeo({ room_id: 1, name: 'A', doors: [
+      { direction: 'left', x: 0, y: 0, subtype: 'normal', exit_ptr: 100, entrance_ptr: 200 },
+      { direction: 'right', x: 1, y: 0, subtype: 'normal', exit_ptr: 200, entrance_ptr: 100 }] });
+    const map = { rooms: [[0, 0]] as [number, number][],
+                  doors: [[[100, 200], [200, 100], true]] as VanillaDoor[] };
+    expect(deriveNeighbours([a], map)).toEqual({ 1: [] });
+  });
+});
+
+describe('buildRoom extras', () => {
+  it('attaches enemies, neighbours and the diagram path', () => {
+    const r = buildRoom(rawTiles(), rawGeo(), [], {
+      enemies: [{ name: 'Fune', quantity: 6 }],
+      neighbours: ['Landing Site'],
+      diagram: 'region/crateria/roomDiagrams/west_TheMoat_7.png',
+    });
+    expect(r.enemies).toEqual([{ name: 'Fune', quantity: 6 }]);
+    expect(r.neighbours).toEqual(['Landing Site']);
+    expect(r.diagram).toBe('region/crateria/roomDiagrams/west_TheMoat_7.png');
+  });
+
+  it('defaults to no enemies and no neighbours', () => {
+    const r = buildRoom(rawTiles(), rawGeo());
+    expect(r.enemies).toEqual([]);
+    expect(r.neighbours).toEqual([]);
+    expect(r.diagram).toBeNull();
   });
 });

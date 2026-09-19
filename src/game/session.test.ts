@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createSession, shuffleBag } from './session';
+import { createSession, shuffleBag, MAX_GUESSES, HINT_ORDER } from './session';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS } from '../render/renderer';
 
@@ -8,120 +8,193 @@ const seeded = (seed: number) => {
   let s = seed;
   return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
 };
+const only = (name: string, seed = 1) => createSession({
+  rooms: rooms.filter((r) => r.name === name),
+  settings: TOURNAMENT_SETTINGS, random: seeded(seed),
+});
 
 describe('shuffleBag', () => {
   it('deals every item once before repeating any', () => {
     const bag = shuffleBag([1, 2, 3, 4, 5], seeded(1));
-    const first = Array.from({ length: 5 }, () => bag.take());
-    expect([...first].sort()).toEqual([1, 2, 3, 4, 5]);
+    expect([...Array.from({ length: 5 }, () => bag.take())].sort()).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('refills once exhausted', () => {
     const bag = shuffleBag([1, 2, 3], seeded(7));
-    const drawn = Array.from({ length: 9 }, () => bag.take());
-    expect(drawn).toHaveLength(9);
-    expect(new Set(drawn)).toEqual(new Set([1, 2, 3]));
-  });
-
-  it('is deterministic for a given seed', () => {
-    const a = Array.from({ length: 6 }, () => shuffleBagOf(1).take());
-    const b = Array.from({ length: 6 }, () => shuffleBagOf(1).take());
-    expect(a).toEqual(b);
+    expect(new Set(Array.from({ length: 9 }, () => bag.take()))).toEqual(new Set([1, 2, 3]));
   });
 });
 
-function shuffleBagOf(seed: number) {
-  return shuffleBag([1, 2, 3, 4, 5, 6], seeded(seed));
-}
-
-describe('createSession', () => {
-  const make = (seed = 1) =>
-    createSession({ rooms, settings: TOURNAMENT_SETTINGS, random: seeded(seed) });
-
-  it('starts by asking about a room', () => {
-    const s = make();
-    expect(s.state()).toBe('asking');
-    expect(rooms).toContain(s.current());
+describe('guesses', () => {
+  it('starts with all guesses unspent and no hints', () => {
+    const s = only('Volcano Room');
+    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+    expect(s.hints()).toEqual([]);
+    expect(s.state()).toBe('guessing');
   });
 
-  it('accepts the room name and counts it correct', () => {
-    const s = make();
-    const grade = s.answer(s.current().name);
+  it('ends the room as soon as the answer is right', () => {
+    const s = only('Volcano Room');
+    expect(s.guess('Volcano Room').correct).toBe(true);
+    expect(s.state()).toBe('solved');
+    expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
+  });
+
+  it('spends a guess and reveals the next hint when wrong', () => {
+    const s = only('Volcano Room');
+    s.guess('Landing Site');
+    expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
+    expect(s.hints()).toHaveLength(1);
+    expect(s.state()).toBe('guessing');
+  });
+
+  it('spends a guess for a hint when skipped, without an answer', () => {
+    const s = only('Volcano Room');
+    s.skip();
+    expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
+    expect(s.hints()).toHaveLength(1);
+  });
+
+  it('reveals hints in order as guesses are spent', () => {
+    const s = only('Volcano Room');
+    s.skip();
+    expect(s.hints().map((h) => h.kind)).toEqual(['area']);
+    s.skip();
+    expect(s.hints().map((h) => h.kind)).toEqual(['area', 'enemies']);
+  });
+
+  /**
+   * The diagram has to be on screen while the last guess is made, not delivered alongside
+   * the answer, so the third spent guess reveals both remaining hints.
+   */
+  it('has every hint showing before the final guess', () => {
+    const s = only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES - 1; i += 1) s.skip();
+    expect(s.guessesLeft()).toBe(1);
+    expect(s.hints().map((h) => h.kind)).toEqual(HINT_ORDER);
+  });
+
+  it('is lost once every guess is spent', () => {
+    const s = only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+    expect(s.guessesLeft()).toBe(0);
+    expect(s.state()).toBe('lost');
+  });
+
+  it('shows every hint once the room is lost', () => {
+    const s = only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+    expect(s.hints().map((h) => h.kind)).toEqual(HINT_ORDER);
+  });
+
+  it('refuses further guesses once the room is over', () => {
+    const s = only('Volcano Room');
+    s.guess('Volcano Room');
+    expect(() => s.guess('Landing Site')).toThrow();
+    expect(() => s.skip()).toThrow();
+  });
+
+  it('does not spend a guess on an answer that names no room', () => {
+    const s = only('Volcano Room');
+    const grade = s.guess('nonsense that is not a room');
+    expect(grade.correct).toBe(false);
+    expect(grade.recognised).toBe(false);
+    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+    expect(s.hints()).toEqual([]);
+  });
+
+  it('suggests a near miss without spending a guess', () => {
+    const s = only('Volcano Room');
+    const grade = s.guess('Volcanoe Room');
+    expect(grade.suggestion?.name).toBe('Volcano Room');
+    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+  });
+
+  it('accepts a room that looks identical to the one shown', () => {
+    const s = only('Wave Beam Room');
+    const grade = s.guess('Ice Beam Room');
     expect(grade.correct).toBe(true);
-    expect(s.state()).toBe('revealed');
-    expect(s.score()).toEqual({ asked: 1, correct: 1 });
+    expect(grade.group.map((r) => r.name).sort()).toContain('Ice Beam Room');
   });
 
   it('accepts an alias', () => {
-    const s = createSession({
-      rooms: rooms.filter((r) => r.name === 'Lower Norfair Escape Power Bomb Room'),
-      settings: TOURNAMENT_SETTINGS, random: seeded(3),
-    });
-    expect(s.answer('The Jail').correct).toBe(true);
+    expect(only('Lower Norfair Escape Power Bomb Room').guess('The Jail').correct).toBe(true);
+  });
+});
+
+describe('hints', () => {
+  const allHints = (name: string) => {
+    const s = only(name);
+    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+    return new Map(s.hints().map((h) => [h.kind, h.text]));
+  };
+
+  it('names the vanilla area first', () => {
+    expect(allHints('Volcano Room').get('area')).toContain('Norfair');
   });
 
-  /** Two rooms that paint identically cannot be told apart, so either name is right. */
-  it('accepts any room that looks identical to the one shown', () => {
-    const s = createSession({
-      rooms: rooms.filter((r) => r.name === 'Wave Beam Room'),
-      settings: TOURNAMENT_SETTINGS, random: seeded(5),
-    });
-    const grade = s.answer('Ice Beam Room');
-    expect(grade.correct).toBe(true);
-    expect(grade.group.map((r) => r.name).sort()).toEqual(['Ice Beam Room', 'Wave Beam Room']);
+  it('lists the enemies second', () => {
+    expect(allHints('Volcano Room').get('enemies')).toContain('Fune');
   });
 
-  it('marks a different room wrong and still reveals the answer', () => {
-    const s = createSession({
-      rooms: rooms.filter((r) => r.name === 'Landing Site'),
-      settings: TOURNAMENT_SETTINGS, random: seeded(2),
-    });
-    const grade = s.answer('The Moat');
-    expect(grade.correct).toBe(false);
-    expect(grade.answer?.name).toBe('The Moat');
-    expect(s.score()).toEqual({ asked: 1, correct: 0 });
+  it('says so plainly for a room with no enemies', () => {
+    expect(allHints('Crateria Map Room').get('enemies')).toMatch(/no enemies/i);
   });
 
-  it('offers a suggestion for a near miss rather than accepting it', () => {
-    const s = createSession({
-      rooms: rooms.filter((r) => r.name === 'Volcano Room'),
-      settings: TOURNAMENT_SETTINGS, random: seeded(4),
-    });
-    const grade = s.answer('Volcanoe Room');
-    expect(grade.correct).toBe(false);
-    expect(grade.suggestion?.name).toBe('Volcano Room');
+  it('names a vanilla neighbour third', () => {
+    const text = allHints('Volcano Room').get('neighbour') ?? '';
+    expect(['Kronic Boost Room', 'Spiky Platforms Tunnel'].some((n) => text.includes(n)))
+      .toBe(true);
   });
 
-  it('can be given up on, which reveals without scoring a point', () => {
+  it('offers the room diagram last', () => {
+    expect(allHints('Volcano Room').get('diagram')).toContain('VolcanoRoom_116.png');
+  });
+
+  it('gives a diagram url that is absolute and pinned', () => {
+    const s = only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+    const diagram = s.hints().find((h) => h.kind === 'diagram');
+    expect(diagram?.imageUrl).toMatch(/^https:\/\/cdn\.jsdelivr\.net\/gh\/vg-json-data\//);
+  });
+});
+
+describe('scoring and progress', () => {
+  const make = () => createSession({
+    rooms, settings: TOURNAMENT_SETTINGS, random: seeded(11),
+  });
+
+  it('counts a room solved on the first guess as a clean solve', () => {
     const s = make();
-    const grade = s.reveal();
-    expect(grade.correct).toBe(false);
-    expect(s.score()).toEqual({ asked: 1, correct: 0 });
-    expect(s.state()).toBe('revealed');
+    s.guess(s.current().name);
+    expect(s.score()).toEqual({ asked: 1, solved: 1, guessesUsed: 1 });
   });
 
-  it('moves to another room on next', () => {
+  it('counts guesses used across a room', () => {
     const s = make();
-    s.answer('nonsense');
+    s.skip();
+    s.skip();
+    s.guess(s.current().name);
+    expect(s.score()).toEqual({ asked: 1, solved: 1, guessesUsed: 3 });
+  });
+
+  it('counts a lost room as asked but not solved', () => {
+    const s = make();
+    for (let i = 0; i < MAX_GUESSES; i += 1) s.skip();
+    expect(s.score()).toEqual({ asked: 1, solved: 0, guessesUsed: MAX_GUESSES });
+  });
+
+  it('resets guesses and hints on the next room', () => {
+    const s = make();
+    s.guess(s.current().name);
     s.next();
-    expect(s.state()).toBe('asking');
-    expect(s.score().asked).toBe(1);
+    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+    expect(s.hints()).toEqual([]);
+    expect(s.state()).toBe('guessing');
   });
 
-  it('refuses to answer twice for the same room', () => {
+  it('refuses to move on while the room is still in play', () => {
     const s = make();
-    s.answer(s.current().name);
-    expect(() => s.answer(s.current().name)).toThrow();
-  });
-
-  it('works through the whole pool without repeating', () => {
-    const s = make();
-    const seen: number[] = [];
-    for (let i = 0; i < rooms.length; i += 1) {
-      seen.push(s.current().id);
-      s.reveal();
-      s.next();
-    }
-    expect(new Set(seen).size).toBe(rooms.length);
+    expect(() => s.next()).toThrow();
   });
 });

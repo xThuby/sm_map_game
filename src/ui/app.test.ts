@@ -1,116 +1,310 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mountApp } from './app';
+import { mountApp, ALIAS_ISSUE_BASE, ZOOM_FACTOR, plural } from './app';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS } from '../render/renderer';
+import { MAX_GUESSES } from '../game/session';
 import type { Renderer } from '../render/renderer';
 
 const noopRenderer: Renderer = { render() { /* jsdom has no canvas */ } };
 const rooms = loadRooms();
-const seeded = () => { let s = 42; return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; }; };
+const seeded = () => {
+  let s = 42;
+  return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+};
 
-const q = <T extends Element>(root: Element, sel: string): T => {
+let root: HTMLElement;
+const q = <T extends Element>(sel: string): T => {
   const el = root.querySelector<T>(sel);
   if (!el) throw new Error(`missing ${sel}`);
   return el;
 };
+const click = (sel: string) => q<HTMLButtonElement>(sel).click();
+const type = (value: string) => {
+  const input = q<HTMLInputElement>('input[name=answer]');
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+};
 
-let root: HTMLElement;
 const mount = (pool = rooms) => {
   root = document.createElement('div');
   document.body.append(root);
   return mountApp(root, {
-    rooms: pool, settings: { ...TOURNAMENT_SETTINGS }, renderer: noopRenderer,
-    random: seeded(),
+    rooms: pool, settings: { ...TOURNAMENT_SETTINGS }, renderer: noopRenderer, random: seeded(),
   });
 };
+const only = (name: string) => mount(rooms.filter((r) => r.name === name));
 
 beforeEach(() => { document.body.innerHTML = ''; });
 
-describe('mountApp', () => {
-  it('renders a canvas, an answer box and a submit control', () => {
+describe('plural', () => {
+  it('uses -es after a sibilant', () => {
+    expect(plural(4, 'guess')).toBe('4 guesses');
+    expect(plural(0, 'guess')).toBe('0 guesses');
+  });
+
+  it('uses -s otherwise', () => {
+    expect(plural(2, 'item')).toBe('2 items');
+    expect(plural(3, 'door')).toBe('3 doors');
+  });
+
+  it('leaves a single one alone', () => {
+    expect(plural(1, 'guess')).toBe('1 guess');
+    expect(plural(1, 'item')).toBe('1 item');
+  });
+});
+
+describe('layout', () => {
+  it('shows a canvas, an answer box, Answer and Skip', () => {
     mount();
-    expect(q(root, 'canvas')).toBeTruthy();
-    expect(q<HTMLInputElement>(root, 'input[name=answer]')).toBeTruthy();
-    expect(q<HTMLButtonElement>(root, 'button[data-action=submit]')).toBeTruthy();
+    expect(q('canvas')).toBeTruthy();
+    expect(q('input[name=answer]')).toBeTruthy();
+    expect(q('button[data-action=guess]')).toBeTruthy();
+    expect(q('button[data-action=skip]')).toBeTruthy();
   });
 
-  it('shows the score from the start', () => {
+  it('says how many guesses are left', () => {
     mount();
-    expect(q(root, '[data-role=score]').textContent).toMatch(/0/);
+    expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
   });
 
-  it('does not name the room before it is answered', () => {
-    const app = mount();
-    expect(root.textContent).not.toContain(app.session.current().name);
-  });
-
-  it('accepts a correct answer and says so', () => {
-    const app = mount();
-    const name = app.session.current().name;
-    q<HTMLInputElement>(root, 'input[name=answer]').value = name;
-    q<HTMLButtonElement>(root, 'button[data-action=submit]').click();
-    expect(q(root, '[data-role=verdict]').textContent).toMatch(/correct/i);
-    expect(root.textContent).toContain(name);
-  });
-
-  it('rejects a wrong answer but still reveals the room', () => {
-    const app = mount();
-    const actual = app.session.current().name;
-    const wrong = rooms.find((r) => r.name !== actual)!;
-    q<HTMLInputElement>(root, 'input[name=answer]').value = wrong.name;
-    q<HTMLButtonElement>(root, 'button[data-action=submit]').click();
-    expect(q(root, '[data-role=verdict]').textContent).not.toMatch(/correct/i);
-    expect(q(root, '[data-role=reveal]').textContent).toContain(actual);
-  });
-
-  it('names the look-alikes when the room has any', () => {
-    const app = mount(rooms.filter((r) => r.name === 'Wave Beam Room'));
-    q<HTMLButtonElement>(root, 'button[data-action=reveal]').click();
-    expect(q(root, '[data-role=reveal]').textContent).toContain('Ice Beam Room');
+  /** Next must not look like a way out of the room; Skip is what buys a hint. */
+  it('hides Next until the room is over', () => {
+    const app = only('Volcano Room');
+    expect(q<HTMLButtonElement>('button[data-action=next]').hidden).toBe(true);
+    type('Volcano Room');
+    click('button[data-action=guess]');
+    expect(q<HTMLButtonElement>('button[data-action=next]').hidden).toBe(false);
     void app;
   });
 
-  it('suggests what a near miss probably meant', () => {
-    mount(rooms.filter((r) => r.name === 'Volcano Room'));
-    q<HTMLInputElement>(root, 'input[name=answer]').value = 'Volcanoe Room';
-    q<HTMLButtonElement>(root, 'button[data-action=submit]').click();
-    expect(q(root, '[data-role=verdict]').textContent).toContain('Volcano Room');
+  it('hides Answer and Skip once the room is over', () => {
+    only('Volcano Room');
+    type('Volcano Room');
+    click('button[data-action=guess]');
+    expect(q<HTMLButtonElement>('button[data-action=guess]').hidden).toBe(true);
+    expect(q<HTMLButtonElement>('button[data-action=skip]').hidden).toBe(true);
   });
 
-  it('offers name completions as you type', () => {
+  it('does not name the room before it is over', () => {
+    const app = only('Volcano Room');
+    expect(root.textContent).not.toContain('Volcano Room');
+    void app;
+  });
+});
+
+describe('guessing', () => {
+  it('says Incorrect for a wrong room', () => {
+    only('Volcano Room');
+    type('Landing Site');
+    click('button[data-action=guess]');
+    expect(q('[data-role=verdict]').textContent).toMatch(/incorrect/i);
+  });
+
+  it('counts down the guesses as they are spent', () => {
+    only('Volcano Room');
+    click('button[data-action=skip]');
+    expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES - 1));
+  });
+
+  it('reveals a hint per spent guess', () => {
+    only('Volcano Room');
+    click('button[data-action=skip]');
+    expect(q('[data-role=hints]').textContent).toContain('Norfair');
+    click('button[data-action=skip]');
+    expect(q('[data-role=hints]').textContent).toContain('Fune');
+  });
+
+  it('shows the room diagram while the final guess is still available', () => {
+    only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES - 1; i += 1) click('button[data-action=skip]');
+    expect(q('[data-role=guesses]').textContent).toContain('1 guess left');
+    expect(q<HTMLImageElement>('[data-role=hints] img').src).toContain('VolcanoRoom_116.png');
+  });
+
+  it('reveals the answer once every guess is spent', () => {
+    only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    expect(q('[data-role=reveal]').textContent).toContain('Volcano Room');
+  });
+
+  it('does nothing at all when the box is empty', () => {
+    only('Volcano Room');
+    click('button[data-action=guess]');
+    expect(q('[data-role=verdict]').textContent).toBe('');
+    expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
+  });
+
+  it('suggests a near miss without spending a guess', () => {
+    only('Volcano Room');
+    type('Volcanoe Room');
+    click('button[data-action=guess]');
+    expect(q('[data-role=verdict]').textContent).toContain('Volcano Room');
+    expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
+  });
+});
+
+describe('the reveal', () => {
+  const revealOf = (name: string) => {
+    only(name);
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    return q('[data-role=reveal]').textContent ?? '';
+  };
+  /** Facts render as separate list items; textContent would run them together. */
+  const factsOf = (name: string) => {
+    only(name);
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    return [...root.querySelectorAll('[data-role=reveal] li')].map((li) => li.textContent ?? '');
+  };
+
+  it('says nothing about heat when the room is not heated', () => {
+    expect(revealOf('The Moat')).not.toMatch(/not heated/i);
+  });
+
+  it('says a room is heated when it is', () => {
+    expect(revealOf('Volcano Room')).toMatch(/heated/i);
+  });
+
+  it('omits the items line when there are none', () => {
+    expect(factsOf('Volcano Room').some((f) => /item/i.test(f))).toBe(false);
+  });
+
+  it('writes item singular and items plural', () => {
+    expect(factsOf('Crateria Power Bomb Room')).toContain('1 item');
+    expect(factsOf('East Sand Hole')).toContain('2 items');
+  });
+
+  it('names the look-alikes when there are any', () => {
+    expect(revealOf('Wave Beam Room')).toContain('Ice Beam Room');
+  });
+
+  it('offers a prefilled issue link for suggesting another name', () => {
+    only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES; i += 1) click('button[data-action=skip]');
+    const link = q<HTMLAnchorElement>('[data-role=reveal] a[data-action=suggest-alias]');
+    expect(link.href).toContain(ALIAS_ISSUE_BASE);
+    const params = new URL(link.href).searchParams;
+    expect(params.get('title')).toContain('Volcano Room');
+    expect(params.get('body')).toContain('Volcano Room');
+    expect(params.get('labels')).toBe('alias-suggestion');
+  });
+});
+
+describe('typing', () => {
+  it('offers completions as you type', () => {
     mount();
-    const input = q<HTMLInputElement>(root, 'input[name=answer]');
-    input.value = 'wrecked ship main';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(q(root, '[data-role=suggestions]').textContent).toContain('Wrecked Ship Main Shaft');
+    type('wrecked ship main');
+    expect(q('[data-role=suggestions]').textContent).toContain('Wrecked Ship Main Shaft');
   });
 
-  it('moves to the next room and clears the box', () => {
+  it('completes to the top suggestion on Tab', () => {
+    mount();
+    const input = q<HTMLInputElement>('input[name=answer]');
+    type('wrecked ship main');
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+    expect(input.value).toBe('Wrecked Ship Main Shaft');
+  });
+
+  it('leaves Tab alone when there is nothing to complete', () => {
+    mount();
+    const input = q<HTMLInputElement>('input[name=answer]');
+    type('zzzzzz');
+    const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    input.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('submits on Enter', () => {
+    const app = only('Volcano Room');
+    const input = q<HTMLInputElement>('input[name=answer]');
+    input.value = 'Volcano Room';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(app.session.state()).toBe('solved');
+  });
+});
+
+describe('moving on', () => {
+  it('clears the board for the next room', () => {
     const app = mount();
-    q<HTMLButtonElement>(root, 'button[data-action=reveal]').click();
-    q<HTMLButtonElement>(root, 'button[data-action=next]').click();
-    expect(app.session.state()).toBe('asking');
-    expect(q<HTMLInputElement>(root, 'input[name=answer]').value).toBe('');
-    expect(q(root, '[data-role=verdict]').textContent).toBe('');
+    type(app.session.current().name);
+    click('button[data-action=guess]');
+    click('button[data-action=next]');
+    expect(q<HTMLInputElement>('input[name=answer]').value).toBe('');
+    expect(q('[data-role=verdict]').textContent).toBe('');
+    expect(q('[data-role=hints]').textContent).toBe('');
+    expect(q('[data-role=reveal]').textContent).toBe('');
+    expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
   });
 
-  it('keeps a running score across rooms', () => {
+  it('keeps a running score', () => {
     const app = mount();
     for (let i = 0; i < 3; i += 1) {
-      q<HTMLInputElement>(root, 'input[name=answer]').value = app.session.current().name;
-      q<HTMLButtonElement>(root, 'button[data-action=submit]').click();
-      q<HTMLButtonElement>(root, 'button[data-action=next]').click();
+      type(app.session.current().name);
+      click('button[data-action=guess]');
+      click('button[data-action=next]');
     }
-    expect(app.session.score()).toEqual({ asked: 3, correct: 3 });
-    expect(q(root, '[data-role=score]').textContent).toMatch(/3/);
+    expect(q('[data-role=score]').textContent).toContain('3');
+  });
+});
+
+describe('zoom', () => {
+  const stage = () => q<HTMLDivElement>('[data-role=stage]');
+
+  it('starts zoomed out', () => {
+    mount();
+    expect(stage().dataset['zoom']).toBe('out');
   });
 
-  it('submits on Enter as well as the button', () => {
+  it('zooms in on click and back out on a second click', () => {
+    mount();
+    stage().click();
+    expect(stage().dataset['zoom']).toBe('in');
+    stage().click();
+    expect(stage().dataset['zoom']).toBe('out');
+  });
+
+  it('scales the map by the zoom factor while zoomed in', () => {
+    mount();
+    stage().click();
+    expect(q<HTMLCanvasElement>('canvas').style.transform).toContain(`scale(${ZOOM_FACTOR})`);
+  });
+
+  it('pans with the pointer, so the point under it stays put', () => {
+    mount();
+    // jsdom does no layout, so the stage would otherwise measure zero and never pan.
+    stage().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+    stage().click();
+    const canvas = q<HTMLCanvasElement>('canvas');
+
+    stage().dispatchEvent(new MouseEvent('mousemove', { clientX: 25, clientY: 25, bubbles: true }));
+    expect(canvas.style.transformOrigin).toBe('25% 25%');
+    stage().dispatchEvent(new MouseEvent('mousemove', { clientX: 90, clientY: 10, bubbles: true }));
+    expect(canvas.style.transformOrigin).toBe('90% 10%');
+  });
+
+  it('keeps the origin inside the map when the pointer leaves it', () => {
+    mount();
+    stage().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+    stage().click();
+    stage().dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: -50, bubbles: true }));
+    expect(q<HTMLCanvasElement>('canvas').style.transformOrigin).toBe('100% 0%');
+  });
+
+  it('ignores pointer movement while zoomed out', () => {
+    mount();
+    const canvas = q<HTMLCanvasElement>('canvas');
+    stage().dispatchEvent(new MouseEvent('mousemove', { clientX: 90, clientY: 90, bubbles: true }));
+    expect(canvas.style.transform).toBe('');
+  });
+
+  it('zooms out again when the next room is shown', () => {
     const app = mount();
-    const input = q<HTMLInputElement>(root, 'input[name=answer]');
-    input.value = app.session.current().name;
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    expect(app.session.state()).toBe('revealed');
+    stage().click();
+    type(app.session.current().name);
+    click('button[data-action=guess]');
+    click('button[data-action=next]');
+    expect(stage().dataset['zoom']).toBe('out');
   });
 });

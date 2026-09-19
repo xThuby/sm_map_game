@@ -27,5 +27,16 @@ export const TOURNAMENT_SETTINGS: RenderSettings = {
   tileSize: 24,
 };
 
-/** What the quiz shows by default. */
-export const DEFAULT_RENDER_SETTINGS: RenderSettings = TOURNAMENT_SETTINGS;
+/**
+ * What the quiz shows: the tournament preset, but with the area colour dropped.
+ *
+ * Map Rando reassigns rooms to areas per seed, so the vanilla area colour carries no
+ * information about which room this is — showing it would teach a signal that is not there.
+ * The cost is more rooms that look alike (60 rather than 37), which the equivalence grouping
+ * already handles. It also makes heated rooms stand out against a neutral ground.
+ */
+export const DEFAULT_RENDER_SETTINGS: RenderSettings = {
+  ...TOURNAMENT_SETTINGS,
+  areaColour: false,
+  tileSize: 96,
+};

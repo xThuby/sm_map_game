@@ -82,6 +82,13 @@ export interface Room {
   utilities: Utility[];
   hasElevator: boolean;
   oneWay: OneWay | null;
+
+  /** Enemy types and counts, for the enemies hint. Empty for 80 of the 253 rooms. */
+  enemies: { name: string; quantity: number }[];
+  /** Rooms this one connects to on the vanilla map, for the neighbour hint. */
+  neighbours: string[];
+  /** Path to this room's in-game diagram within sm-json-data, served over a CDN. */
+  diagram: string | null;
 }
 
 export type Visibility = 'visible' | 'hidden';

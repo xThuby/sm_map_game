@@ -11,7 +11,7 @@ const room = (over: Partial<Room> = {}): Room => ({
   id: 1, name: 'Test Room', aliases: [], area: 'Crateria', width: 1, height: 1,
   tiles: [tile()], heated: false, liquid: 'none', liquidLevel: null,
   doors: [], itemCount: 0, hasHiddenItem: false, utilities: [], hasElevator: false,
-  oneWay: null, ...over,
+  oneWay: null, enemies: [], neighbours: [], diagram: null, ...over,
 });
 
 const walls = (w: 'vanilla' | 'enhanced') => ({ walls: w, blueDoors: 'visible' } as const);

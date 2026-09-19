@@ -12,7 +12,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildAllRooms } from './transform.ts';
-import type { RawGeoRoom, RawTileRoom } from './transform.ts';
+import type { RawGeoRoom, RawTileRoom, SmJsonRoom, VanillaMap } from './transform.ts';
 import type { Room } from '../src/types.ts';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,11 +35,14 @@ function main(): void {
     readFileSync(resolve(rawDir, 'room_geometry.json'), 'utf8'),
   ) as RawGeoRoom[];
 
-  const smJsonNames = JSON.parse(
-    readFileSync(resolve(rawDir, 'sm_json_names.json'), 'utf8'),
-  ) as Record<string, string>;
+  const smJson = JSON.parse(
+    readFileSync(resolve(rawDir, 'sm_json_rooms.json'), 'utf8'),
+  ) as Record<string, SmJsonRoom>;
+  const vanillaMap = JSON.parse(
+    readFileSync(resolve(rawDir, 'vanilla_map.json'), 'utf8'),
+  ) as VanillaMap;
 
-  const rooms: Room[] = buildAllRooms(tiles.rooms, geo, smJsonNames);
+  const rooms: Room[] = buildAllRooms(tiles.rooms, geo, smJson, vanillaMap);
 
   assert(rooms.length === EXPECTED_ROOMS, `expected ${EXPECTED_ROOMS} rooms, got ${rooms.length}`);
   const tileCount = rooms.reduce((n, r) => n + r.tiles.length, 0);

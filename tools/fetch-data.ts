@@ -18,6 +18,7 @@ const REPO = 'blkerby/MapRandomizer';
 const FILES: { from: string; to: string }[] = [
   { from: 'rust/data/map_tiles.json', to: 'map_tiles.json' },
   { from: 'room_geometry.json', to: 'room_geometry.json' },
+  { from: 'maps/vanilla/vanilla_map.json', to: 'vanilla_map.json' },
 ];
 
 const rawDir = resolve(dirname(fileURLToPath(import.meta.url)), '../data/raw');

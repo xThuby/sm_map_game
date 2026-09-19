@@ -1,6 +1,7 @@
 /**
- * Extracts an id -> name map from sm-json-data at a pinned commit, into
- * data/raw/sm_json_names.json.
+ * Extracts per-room facts from sm-json-data at a pinned commit, into
+ * data/raw/sm_json_rooms.json: the room's name there, its enemies, and the path to its room
+ * diagram image.
  *
  *   npm run fetch:aliases
  *
@@ -29,6 +30,14 @@ function walk(dir: string): string[] {
   });
 }
 
+function walkPng(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) return walkPng(full);
+    return full.endsWith('.png') && full.includes('roomDiagrams') ? [full] : [];
+  });
+}
+
 async function main(): Promise<void> {
   const work = mkdtempSync(join(tmpdir(), 'sm-json-'));
   try {
@@ -40,21 +49,44 @@ async function main(): Promise<void> {
     execFileSync('tar', ['-xzf', tarball, '-C', work]);
 
     const root = join(work, `sm-json-data-${PINNED_COMMIT}`, 'region');
-    const names: Record<string, string> = {};
-    for (const file of walk(root)) {
+    const files = walk(root);
+
+    // Room diagrams are named <subarea>_<RoomName>_<roomId>.png.
+    const diagrams: Record<string, string> = {};
+    for (const file of files.length ? walkPng(root) : []) {
+      const id = /_(\d+)\.png$/.exec(file)?.[1];
+      if (id) diagrams[id] = file.slice(file.indexOf('region/'));
+    }
+
+    const rooms: Record<string, unknown> = {};
+    for (const file of files) {
       if (file.includes('roomDiagrams')) continue;
-      const doc = JSON.parse(readFileSync(file, 'utf8')) as { id?: number; name?: string; nodes?: unknown };
-      if (typeof doc.id === 'number' && typeof doc.name === 'string' && doc.nodes) {
-        names[String(doc.id)] = doc.name;
+      const doc = JSON.parse(readFileSync(file, 'utf8')) as {
+        id?: number; name?: string; nodes?: unknown;
+        enemies?: { enemyName?: string; quantity?: number }[];
+      };
+      if (typeof doc.id !== 'number' || typeof doc.name !== 'string' || !doc.nodes) continue;
+
+      // Collapse the groups sm-json-data splits enemies into; a hint wants "5 Fune", not
+      // which node they patrol.
+      const counts = new Map<string, number>();
+      for (const e of doc.enemies ?? []) {
+        if (!e.enemyName) continue;
+        counts.set(e.enemyName, (counts.get(e.enemyName) ?? 0) + (e.quantity ?? 1));
       }
+      rooms[String(doc.id)] = {
+        name: doc.name,
+        enemies: [...counts].map(([name, quantity]) => ({ name, quantity })),
+        diagram: diagrams[String(doc.id)] ?? null,
+      };
     }
 
     const sorted = Object.fromEntries(
-      Object.entries(names).sort(([a], [b]) => Number(a) - Number(b)),
+      Object.entries(rooms).sort(([a], [b]) => Number(a) - Number(b)),
     );
     mkdirSync(rawDir, { recursive: true });
-    writeFileSync(resolve(rawDir, 'sm_json_names.json'), `${JSON.stringify(sorted, null, 2)}\n`);
-    console.log(`Wrote ${Object.keys(sorted).length} room names from ${REPO} @ ${PINNED_COMMIT.slice(0, 7)}`);
+    writeFileSync(resolve(rawDir, 'sm_json_rooms.json'), `${JSON.stringify(sorted, null, 1)}\n`);
+    console.log(`Wrote ${Object.keys(sorted).length} rooms from ${REPO} @ ${PINNED_COMMIT.slice(0, 7)}`);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

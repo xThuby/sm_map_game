@@ -1,0 +1,2676 @@
+{
+ "1": {
+  "name": "Ceres Elevator Room",
+  "enemies": [],
+  "diagram": "region/ceres/roomDiagrams/ceres_CeresElevatorRoom_1.png"
+ },
+ "2": {
+  "name": "Falling Tile Room",
+  "enemies": [],
+  "diagram": "region/ceres/roomDiagrams/ceres_FallingTileRoom_2.png"
+ },
+ "3": {
+  "name": "Magnet Stairs Room",
+  "enemies": [],
+  "diagram": "region/ceres/roomDiagrams/ceres_MagnetStairsRoom_3.png"
+ },
+ "4": {
+  "name": "Dead Scientist Room",
+  "enemies": [],
+  "diagram": "region/ceres/roomDiagrams/ceres_DeadScientistRoom_4.png"
+ },
+ "5": {
+  "name": "58 Escape",
+  "enemies": [],
+  "diagram": "region/ceres/roomDiagrams/ceres_58Escape_5.png"
+ },
+ "6": {
+  "name": "Ceres Ridley's Room",
+  "enemies": [
+   {
+    "name": "Ceres Ridley",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/ceres/roomDiagrams/ceres_CeresRidleysRoom_6.png"
+ },
+ "7": {
+  "name": "The Moat",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/east_TheMoat_7.png"
+ },
+ "8": {
+  "name": "Landing Site",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/central_LandingSite_8.png"
+ },
+ "9": {
+  "name": "Crateria Tube",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/central_CrateriaTube_9.png"
+ },
+ "10": {
+  "name": "Parlor and Alcatraz",
+  "enemies": [
+   {
+    "name": "Ripper",
+    "quantity": 2
+   },
+   {
+    "name": "Skree",
+    "quantity": 3
+   },
+   {
+    "name": "Geemer (blue)",
+    "quantity": 11
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/central_ParlorAndAlcatraz_10.png"
+ },
+ "11": {
+  "name": "Climb",
+  "enemies": [
+   {
+    "name": "Grey Space Pirate (wall)",
+    "quantity": 11
+   },
+   {
+    "name": "Custom Climb Pirate",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/central_Climb_11.png"
+ },
+ "12": {
+  "name": "Pit Room",
+  "enemies": [
+   {
+    "name": "Grey Space Pirate (standing)",
+    "quantity": 4
+   },
+   {
+    "name": "Grey Space Pirate (wall)",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/central_PitRoom_12.png"
+ },
+ "13": {
+  "name": "Flyway",
+  "enemies": [
+   {
+    "name": "Mellow",
+    "quantity": 12
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/central_Flyway_13.png"
+ },
+ "14": {
+  "name": "Pre-Map Flyway",
+  "enemies": [
+   {
+    "name": "Mellow",
+    "quantity": 3
+   },
+   {
+    "name": "Reo",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/central_PreMapFlyway_14.png"
+ },
+ "15": {
+  "name": "Crateria Map Room",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/central_CrateriaMapRoom_15.png"
+ },
+ "16": {
+  "name": "Crateria Save Room",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/central_CrateriaSaveRoom_16.png"
+ },
+ "17": {
+  "name": "230 Missile Room",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/central_230MissileRoom_17.png"
+ },
+ "18": {
+  "name": "Final Missile Bombway",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/central_FinalMissileBombway_18.png"
+ },
+ "19": {
+  "name": "Bomb Torizo Room",
+  "enemies": [
+   {
+    "name": "Bomb Torizo",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/central_BombTorizoRoom_19.png"
+ },
+ "20": {
+  "name": "Terminator Room",
+  "enemies": [
+   {
+    "name": "Geemer (blue)",
+    "quantity": 6
+   },
+   {
+    "name": "Waver",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/west_TerminatorRoom_20.png"
+ },
+ "21": {
+  "name": "Green Pirates Shaft",
+  "enemies": [
+   {
+    "name": "Green Space Pirate (standing)",
+    "quantity": 5
+   },
+   {
+    "name": "Beetom",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/west_GreenPiratesShaft_21.png"
+ },
+ "22": {
+  "name": "Lower Mushrooms",
+  "enemies": [
+   {
+    "name": "Geemer (grey)",
+    "quantity": 2
+   },
+   {
+    "name": "Kago",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/west_LowerMushrooms_22.png"
+ },
+ "23": {
+  "name": "Green Brinstar Elevator Room",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/west_GreenBrinstarElevatorRoom_23.png"
+ },
+ "24": {
+  "name": "Crateria Kihunter Room",
+  "enemies": [
+   {
+    "name": "Kihunter (green)",
+    "quantity": 2
+   },
+   {
+    "name": "Sciser",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/east_CrateriaKihunterRoom_24.png"
+ },
+ "25": {
+  "name": "Red Brinstar Elevator Room",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/east_RedBrinstarElevatorRoom_25.png"
+ },
+ "26": {
+  "name": "Statues Hallway",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/west_StatuesHallway_26.png"
+ },
+ "27": {
+  "name": "Statues Room",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/west_StatuesRoom_27.png"
+ },
+ "28": {
+  "name": "Crateria Power Bomb Room",
+  "enemies": [
+   {
+    "name": "Alcoon",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/central_CrateriaPowerBombRoom_28.png"
+ },
+ "29": {
+  "name": "Climb Supers Room",
+  "enemies": [
+   {
+    "name": "Boyon",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/central_ClimbSupersRoom_29.png"
+ },
+ "30": {
+  "name": "Gauntlet Entrance",
+  "enemies": [
+   {
+    "name": "Waver",
+    "quantity": 3
+   },
+   {
+    "name": "Yapping Maw",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/west_GauntletEntrance_30.png"
+ },
+ "31": {
+  "name": "Gauntlet Energy Tank Room",
+  "enemies": [
+   {
+    "name": "Yapping Maw",
+    "quantity": 1
+   },
+   {
+    "name": "Zebbo",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/west_GauntletEnergyTankRoom_31.png"
+ },
+ "32": {
+  "name": "West Ocean",
+  "enemies": [
+   {
+    "name": "Zeb",
+    "quantity": 1
+   },
+   {
+    "name": "Tripper",
+    "quantity": 3
+   },
+   {
+    "name": "Ripper 2 (green)",
+    "quantity": 1
+   },
+   {
+    "name": "Skultera",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/east_WestOcean_32.png"
+ },
+ "33": {
+  "name": "Pancakes and Wavers Room",
+  "enemies": [
+   {
+    "name": "Waver",
+    "quantity": 3
+   },
+   {
+    "name": "Choot",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/east_PancakesAndWaversRoom_33.png"
+ },
+ "34": {
+  "name": "East Ocean",
+  "enemies": [
+   {
+    "name": "Choot",
+    "quantity": 5
+   },
+   {
+    "name": "Skultera",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/east_EastOcean_34.png"
+ },
+ "35": {
+  "name": "Forgotten Highway Kago Room",
+  "enemies": [
+   {
+    "name": "Kago",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/east_ForgottenHighwayKagoRoom_35.png"
+ },
+ "36": {
+  "name": "Crab Maze",
+  "enemies": [
+   {
+    "name": "Sciser",
+    "quantity": 8
+   }
+  ],
+  "diagram": "region/crateria/roomDiagrams/east_CrabMaze_36.png"
+ },
+ "37": {
+  "name": "Forgotten Highway Elevator",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/east_ForgottenHighwayElevator_37.png"
+ },
+ "38": {
+  "name": "Morph Ball Room",
+  "enemies": [
+   {
+    "name": "Sidehopper",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/blue_MorphBallRoom_38.png"
+ },
+ "39": {
+  "name": "Construction Zone",
+  "enemies": [
+   {
+    "name": "Geemer (blue)",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/blue_ConstructionZone_39.png"
+ },
+ "40": {
+  "name": "First Missile Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/blue_FirstMissileRoom_40.png"
+ },
+ "41": {
+  "name": "Blue Brinstar Energy Tank Room",
+  "enemies": [
+   {
+    "name": "Geemer (blue)",
+    "quantity": 2
+   },
+   {
+    "name": "Skree",
+    "quantity": 2
+   },
+   {
+    "name": "Reo",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/blue_BlueBrinstarEnergyTankRoom_41.png"
+ },
+ "42": {
+  "name": "Blue Brinstar Boulder Room",
+  "enemies": [
+   {
+    "name": "Boulder",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/blue_BlueBrinstarBoulderRoom_42.png"
+ },
+ "43": {
+  "name": "Billy Mays Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/blue_BillyMaysRoom_43.png"
+ },
+ "44": {
+  "name": "Green Brinstar Main Shaft",
+  "enemies": [
+   {
+    "name": "Zeela",
+    "quantity": 5
+   },
+   {
+    "name": "Ripper 2 (red)",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_GreenBrinstarMainShaft-EtecoonRoom_44.png"
+ },
+ "45": {
+  "name": "Early Supers Room",
+  "enemies": [
+   {
+    "name": "Zeb",
+    "quantity": 1
+   },
+   {
+    "name": "Waver",
+    "quantity": 4
+   },
+   {
+    "name": "Sm. Sidehopper",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_EarlySupersRoom_45.png"
+ },
+ "46": {
+  "name": "Brinstar Reserve Tank Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/green_BrinstarReserveTankRoom_46.png"
+ },
+ "47": {
+  "name": "Brinstar Pre-Map Room",
+  "enemies": [
+   {
+    "name": "Zeela",
+    "quantity": 3
+   },
+   {
+    "name": "Sm. Sidehopper",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_BrinstarPreMapRoom_47.png"
+ },
+ "48": {
+  "name": "Brinstar Map Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/green_BrinstarMapRoom_48.png"
+ },
+ "49": {
+  "name": "Green Brinstar Fireflea Room",
+  "enemies": [
+   {
+    "name": "Fireflea",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_GreenBrinstarFirefleaRoom_49.png"
+ },
+ "50": {
+  "name": "Green Brinstar Beetom Room",
+  "enemies": [
+   {
+    "name": "Beetom",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_GreenBrinstarBeetomRoom_50.png"
+ },
+ "51": {
+  "name": "Etecoon Energy Tank Room",
+  "enemies": [
+   {
+    "name": "Beetom",
+    "quantity": 5
+   },
+   {
+    "name": "Zebbo",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_EtecoonEnergyTankRoom_51.png"
+ },
+ "52": {
+  "name": "Etecoon Super Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/green_EtecoonSuperRoom_52.png"
+ },
+ "54": {
+  "name": "Green Hill Zone",
+  "enemies": [
+   {
+    "name": "Geega",
+    "quantity": 5
+   },
+   {
+    "name": "Sm. Sidehopper",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_GreenHillZone_54.png"
+ },
+ "55": {
+  "name": "Noob Bridge",
+  "enemies": [
+   {
+    "name": "Cacatac",
+    "quantity": 4
+   },
+   {
+    "name": "Zeela",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_NoobBridge_55.png"
+ },
+ "56": {
+  "name": "Spore Spawn Kihunter Room",
+  "enemies": [
+   {
+    "name": "Kihunter (green)",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_SporeSpawnKihunterRoom_56.png"
+ },
+ "57": {
+  "name": "Spore Spawn Room",
+  "enemies": [
+   {
+    "name": "Spore Spawn",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/green_SporeSpawnRoom_57.png"
+ },
+ "58": {
+  "name": "Dachora Room",
+  "enemies": [
+   {
+    "name": "Zeela",
+    "quantity": 2
+   },
+   {
+    "name": "Reo",
+    "quantity": 3
+   },
+   {
+    "name": "Metaree",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/pink_DachoraRoom_58.png"
+ },
+ "59": {
+  "name": "Big Pink",
+  "enemies": [
+   {
+    "name": "Zeb",
+    "quantity": 3
+   },
+   {
+    "name": "Sm. Sidehopper",
+    "quantity": 4
+   },
+   {
+    "name": "Reo",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/pink_BigPink_59.png"
+ },
+ "60": {
+  "name": "Mission Impossible Room",
+  "enemies": [
+   {
+    "name": "Sidehopper",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/pink_MissionImpossibleRoom_60.png"
+ },
+ "61": {
+  "name": "Pink Brinstar Wave Gate Room",
+  "enemies": [
+   {
+    "name": "Sm. Sidehopper",
+    "quantity": 2
+   },
+   {
+    "name": "Sidehopper",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/pink_PinkBrinstarWaveGateRoom_61.png"
+ },
+ "62": {
+  "name": "Wave Gate Energy Tank Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/pink_WaveGateEnergyTankRoom_62.png"
+ },
+ "63": {
+  "name": "Spore Spawn Super Room",
+  "enemies": [
+   {
+    "name": "Zeb",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/pink_SporeSpawnSuperRoom_63.png"
+ },
+ "64": {
+  "name": "Spore Spawn Farming Room",
+  "enemies": [
+   {
+    "name": "Zeela",
+    "quantity": 2
+   },
+   {
+    "name": "Zeb",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/pink_SporeSpawnFarmingRoom_64.png"
+ },
+ "65": {
+  "name": "Waterway Energy Tank Room",
+  "enemies": [
+   {
+    "name": "Zero",
+    "quantity": 2
+   },
+   {
+    "name": "Puyo",
+    "quantity": 3
+   },
+   {
+    "name": "Skultera",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/pink_WaterwayEnergyTankRoom_65.png"
+ },
+ "66": {
+  "name": "Red Tower",
+  "enemies": [
+   {
+    "name": "Geega",
+    "quantity": 2
+   },
+   {
+    "name": "Beetom",
+    "quantity": 1
+   },
+   {
+    "name": "Ripper",
+    "quantity": 8
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/red_RedTower_66.png"
+ },
+ "67": {
+  "name": "Red Brinstar Fireflea Room",
+  "enemies": [
+   {
+    "name": "Waver",
+    "quantity": 3
+   },
+   {
+    "name": "Yapping Maw",
+    "quantity": 3
+   },
+   {
+    "name": "Fireflea",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/red_RedBrinstarFirefleaRoom_67.png"
+ },
+ "68": {
+  "name": "X-Ray Scope Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/red_X-RayScopeRoom_68.png"
+ },
+ "69": {
+  "name": "Skree Boost Room",
+  "enemies": [
+   {
+    "name": "Skree",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/red_SkreeBoostRoom_69.png"
+ },
+ "70": {
+  "name": "Below Spazer",
+  "enemies": [
+   {
+    "name": "Cacatac",
+    "quantity": 1
+   },
+   {
+    "name": "Yapping Maw",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/red_BelowSpazer_70.png"
+ },
+ "71": {
+  "name": "Spazer Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/red_SpazerRoom_71.png"
+ },
+ "74": {
+  "name": "Hellway",
+  "enemies": [
+   {
+    "name": "Zebbo",
+    "quantity": 4
+   },
+   {
+    "name": "Zeela",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/red_Hellway_74.png"
+ },
+ "75": {
+  "name": "Caterpillar Room",
+  "enemies": [
+   {
+    "name": "Cacatac",
+    "quantity": 2
+   },
+   {
+    "name": "Zero",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/red_CaterpillarRoom_75.png"
+ },
+ "76": {
+  "name": "Alpha Power Bomb Room",
+  "enemies": [
+   {
+    "name": "Boyon",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/red_AlphaPowerBombRoom_76.png"
+ },
+ "77": {
+  "name": "Beta Power Bomb Room",
+  "enemies": [
+   {
+    "name": "Sidehopper",
+    "quantity": 3
+   },
+   {
+    "name": "Yapping Maw",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/red_BetaPowerBombRoom_77.png"
+ },
+ "78": {
+  "name": "Warehouse Entrance",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/kraid_WarehouseEntrance_78.png"
+ },
+ "79": {
+  "name": "Warehouse Zeela Room",
+  "enemies": [
+   {
+    "name": "Zeela",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/kraid_WarehouseZeelaRoom_79.png"
+ },
+ "80": {
+  "name": "Warehouse Energy Tank Room",
+  "enemies": [
+   {
+    "name": "Beetom",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/kraid_WarehouseEnergyTankRoom_80.png"
+ },
+ "81": {
+  "name": "Warehouse Kihunter Room",
+  "enemies": [
+   {
+    "name": "Kihunter (green)",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/kraid_WarehouseKihunterRoom_81.png"
+ },
+ "82": {
+  "name": "Baby Kraid Room",
+  "enemies": [
+   {
+    "name": "Green Space Pirate (standing)",
+    "quantity": 3
+   },
+   {
+    "name": "Mini-Kraid",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/kraid_BabyKraidRoom_82.png"
+ },
+ "83": {
+  "name": "Kraid Eye Door Room",
+  "enemies": [
+   {
+    "name": "Zeb",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/kraid_KraidEyeDoorRoom_83.png"
+ },
+ "84": {
+  "name": "Kraid Room",
+  "enemies": [
+   {
+    "name": "Kraid",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/brinstar/roomDiagrams/kraid_KraidsRoom_84.png"
+ },
+ "85": {
+  "name": "Varia Suit Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/kraid_VariaSuitRoom_85.png"
+ },
+ "86": {
+  "name": "Business Center",
+  "enemies": [
+   {
+    "name": "Sova",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/west_BusinessCenter_86.png"
+ },
+ "87": {
+  "name": "Norfair Map Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/west_NorfairMapRoom_87.png"
+ },
+ "88": {
+  "name": "Hi Jump Energy Tank Room",
+  "enemies": [
+   {
+    "name": "Sova",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/west_HiJumpEnergyTankRoom_88.png"
+ },
+ "89": {
+  "name": "Hi Jump Boots Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/west_HiJumpBootsRoom_89.png"
+ },
+ "90": {
+  "name": "Cathedral Entrance",
+  "enemies": [
+   {
+    "name": "Sova",
+    "quantity": 4
+   },
+   {
+    "name": "Sm. Dessgeega",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_CathedralEntrance_90.png"
+ },
+ "91": {
+  "name": "Cathedral",
+  "enemies": [
+   {
+    "name": "Sova",
+    "quantity": 4
+   },
+   {
+    "name": "Geruta",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_Cathedral_91.png"
+ },
+ "92": {
+  "name": "Rising Tide",
+  "enemies": [
+   {
+    "name": "Sova",
+    "quantity": 5
+   },
+   {
+    "name": "Dragon",
+    "quantity": 4
+   },
+   {
+    "name": "Squeept",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_RisingTide_92.png"
+ },
+ "93": {
+  "name": "Frog Speedway",
+  "enemies": [
+   {
+    "name": "Beetom",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_FrogSpeedway_93.png"
+ },
+ "94": {
+  "name": "Upper Norfair Farming Room",
+  "enemies": [
+   {
+    "name": "Fune",
+    "quantity": 1
+   },
+   {
+    "name": "Gamet",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_UpperNorfairFarmingRoom_94.png"
+ },
+ "95": {
+  "name": "Purple Shaft",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/east_PurpleShaft_95.png"
+ },
+ "96": {
+  "name": "Purple Farming Room",
+  "enemies": [
+   {
+    "name": "Gamet",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_PurpleFarmingRoom_96.png"
+ },
+ "97": {
+  "name": "Bubble Mountain",
+  "enemies": [
+   {
+    "name": "Sova",
+    "quantity": 3
+   },
+   {
+    "name": "Waver",
+    "quantity": 3
+   },
+   {
+    "name": "Cacatac",
+    "quantity": 1
+   },
+   {
+    "name": "Ripper 2 (red)",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_BubbleMountain_97.png"
+ },
+ "98": {
+  "name": "Green Bubbles Tunnel",
+  "enemies": [
+   {
+    "name": "Geruta",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_GreenBubblesTunnel_98.png"
+ },
+ "99": {
+  "name": "Norfair Reserve Tank Room",
+  "enemies": [
+   {
+    "name": "Dragon",
+    "quantity": 3
+   },
+   {
+    "name": "Sova",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_NorfairReserveTankRoom_99.png"
+ },
+ "100": {
+  "name": "Bat Cave",
+  "enemies": [
+   {
+    "name": "Skree",
+    "quantity": 3
+   },
+   {
+    "name": "Gamet",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_BatCave_100.png"
+ },
+ "101": {
+  "name": "Speed Booster Hall",
+  "enemies": [
+   {
+    "name": "Metaree",
+    "quantity": 2
+   },
+   {
+    "name": "Geruta",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_SpeedBoosterHall_101.png"
+ },
+ "102": {
+  "name": "Speed Booster Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/east_SpeedBoosterRoom_102.png"
+ },
+ "103": {
+  "name": "Single Chamber",
+  "enemies": [
+   {
+    "name": "Alcoon",
+    "quantity": 4
+   },
+   {
+    "name": "Multiviola",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_SingleChamber_103.png"
+ },
+ "104": {
+  "name": "Double Chamber",
+  "enemies": [
+   {
+    "name": "Fune",
+    "quantity": 2
+   },
+   {
+    "name": "Ripper 2 (green)",
+    "quantity": 1
+   },
+   {
+    "name": "Kago",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_DoubleChamber_104.png"
+ },
+ "105": {
+  "name": "Wave Beam Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/east_WaveBeamRoom_105.png"
+ },
+ "106": {
+  "name": "Ice Beam Gate Room",
+  "enemies": [
+   {
+    "name": "Sova",
+    "quantity": 1
+   },
+   {
+    "name": "Sm. Dessgeega",
+    "quantity": 3
+   },
+   {
+    "name": "Mella",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/west_IceBeamGateRoom_106.png"
+ },
+ "107": {
+  "name": "Ice Beam Trippers Room",
+  "enemies": [
+   {
+    "name": "Tripper",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/west_IceBeamTrippersRoom_107.png"
+ },
+ "108": {
+  "name": "Ice Beam Snake Room",
+  "enemies": [
+   {
+    "name": "Fune",
+    "quantity": 4
+   },
+   {
+    "name": "Sova",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/west_IceBeamSnakeRoom_108.png"
+ },
+ "109": {
+  "name": "Ice Beam Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/west_IceBeamRoom_109.png"
+ },
+ "110": {
+  "name": "Ice Beam Tutorial Room",
+  "enemies": [
+   {
+    "name": "Boyon",
+    "quantity": 3
+   },
+   {
+    "name": "Ripper 2 (red)",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/west_IceBeamTutorialRoom_110.png"
+ },
+ "111": {
+  "name": "Crumble Shaft",
+  "enemies": [
+   {
+    "name": "Sova",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/west_CrumbleShaft_111.png"
+ },
+ "112": {
+  "name": "Lava Grapple Tunnel",
+  "enemies": [
+   {
+    "name": "Yapping Maw",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_LavaGrappleTunnel_112.png"
+ },
+ "113": {
+  "name": "Kronic Boost Room",
+  "enemies": [
+   {
+    "name": "Viola",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_KronicBoostRoom_113.png"
+ },
+ "114": {
+  "name": "Magdollite Tunnel",
+  "enemies": [
+   {
+    "name": "Multiviola",
+    "quantity": 2
+   },
+   {
+    "name": "Magdollite",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_MagdolliteTunnel_114.png"
+ },
+ "115": {
+  "name": "Lava Dive Room",
+  "enemies": [
+   {
+    "name": "Namihe",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_LavaDiveRoom_115.png"
+ },
+ "116": {
+  "name": "Volcano Room",
+  "enemies": [
+   {
+    "name": "Fune",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_VolcanoRoom_116.png"
+ },
+ "117": {
+  "name": "Spiky Platforms Tunnel",
+  "enemies": [
+   {
+    "name": "Tripper",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_SpikyPlatformsTunnel_117.png"
+ },
+ "118": {
+  "name": "Red Pirate Shaft",
+  "enemies": [
+   {
+    "name": "Geemer (grey)",
+    "quantity": 4
+   },
+   {
+    "name": "Red Space Pirate (standing)",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_RedPirateShaft_118.png"
+ },
+ "119": {
+  "name": "Lava Farm Tunnel",
+  "enemies": [
+   {
+    "name": "Gamet",
+    "quantity": 5
+   },
+   {
+    "name": "Dragon",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/east_LavaFarmTunnel_119.png"
+ },
+ "120": {
+  "name": "Crocomire Speedway",
+  "enemies": [
+   {
+    "name": "Red Space Pirate (standing)",
+    "quantity": 5
+   },
+   {
+    "name": "Multiviola",
+    "quantity": 4
+   },
+   {
+    "name": "Cacatac",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/west_CrocomireSpeedway_120.png"
+ },
+ "121": {
+  "name": "Crocomire Escape",
+  "enemies": [
+   {
+    "name": "Geruta",
+    "quantity": 1
+   },
+   {
+    "name": "Dragon",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/west_CrocomireEscape_121.png"
+ },
+ "122": {
+  "name": "Crocomire's Room",
+  "enemies": [
+   {
+    "name": "Crocomire",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/crocomire_CrocomiresRoom_122.png"
+ },
+ "123": {
+  "name": "Post Crocomire Farming Room",
+  "enemies": [
+   {
+    "name": "Ripper 2 (green)",
+    "quantity": 1
+   },
+   {
+    "name": "Gamet",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/crocomire_PostCrocomireFarmingRoom_123.png"
+ },
+ "124": {
+  "name": "Post Crocomire Power Bomb Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/crocomire_PostCrocomirePowerBombRoom_124.png"
+ },
+ "125": {
+  "name": "Post Crocomire Shaft",
+  "enemies": [
+   {
+    "name": "Viola",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/crocomire_PostCrocomireShaft_125.png"
+ },
+ "126": {
+  "name": "Cosine Room",
+  "enemies": [
+   {
+    "name": "Metaree",
+    "quantity": 2
+   },
+   {
+    "name": "Gamet",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/crocomire_CosineRoom_126.png"
+ },
+ "127": {
+  "name": "Indiana Jones Room",
+  "enemies": [
+   {
+    "name": "Ripper 2 (green)",
+    "quantity": 4
+   },
+   {
+    "name": "Mella",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/crocomire_IndianaJonesRoom_127.png"
+ },
+ "128": {
+  "name": "Grapple Beam Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/crocomire_GrappleBeamRoom_128.png"
+ },
+ "129": {
+  "name": "Grapple Tutorial Room 1",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/crocomire_GrappleTutorialRoom1_129.png"
+ },
+ "130": {
+  "name": "Grapple Tutorial Room 2",
+  "enemies": [
+   {
+    "name": "Fune",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/crocomire_GrappleTutorialRoom2_130.png"
+ },
+ "131": {
+  "name": "Grapple Tutorial Room 3",
+  "enemies": [
+   {
+    "name": "Gamet",
+    "quantity": 5
+   },
+   {
+    "name": "Puyo",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/norfair/roomDiagrams/crocomire_GrappleTutorialRoom3_131.png"
+ },
+ "132": {
+  "name": "Main Hall",
+  "enemies": [
+   {
+    "name": "Dragon",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_MainHall_132.png"
+ },
+ "133": {
+  "name": "Fast Pillars Setup Room",
+  "enemies": [
+   {
+    "name": "Yellow Space Pirate (standing)",
+    "quantity": 1
+   },
+   {
+    "name": "Yellow Space Pirate (wall)",
+    "quantity": 2
+   },
+   {
+    "name": "Viola",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_FastPillarsSetupRoom_133.png"
+ },
+ "134": {
+  "name": "Pillar Room",
+  "enemies": [
+   {
+    "name": "Puromi",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_PillarRoom_134.png"
+ },
+ "135": {
+  "name": "The Worst Room In The Game",
+  "enemies": [
+   {
+    "name": "Yellow Space Pirate (wall)",
+    "quantity": 3
+   },
+   {
+    "name": "Namihe",
+    "quantity": 5
+   },
+   {
+    "name": "Yellow Space Pirate (standing)",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_TheWorstRoomInTheGame_135.png"
+ },
+ "136": {
+  "name": "Amphitheatre",
+  "enemies": [
+   {
+    "name": "Yellow Space Pirate (standing)",
+    "quantity": 9
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_Amphitheatre_136.png"
+ },
+ "137": {
+  "name": "Red Kihunter Shaft",
+  "enemies": [
+   {
+    "name": "Kihunter (red)",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_RedKihunterShaft_137.png"
+ },
+ "138": {
+  "name": "Wasteland",
+  "enemies": [
+   {
+    "name": "Dessgeega",
+    "quantity": 4
+   },
+   {
+    "name": "Kzan",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_Wasteland_138.png"
+ },
+ "139": {
+  "name": "Metal Pirates Room",
+  "enemies": [
+   {
+    "name": "Space Pirate (fighting)",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_MetalPiratesRoom_139.png"
+ },
+ "140": {
+  "name": "Plowerhouse Room",
+  "enemies": [
+   {
+    "name": "Holtz",
+    "quantity": 6
+   },
+   {
+    "name": "Zebbo",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_PlowerhouseRoom_140.png"
+ },
+ "141": {
+  "name": "Lower Norfair Farming Room",
+  "enemies": [
+   {
+    "name": "Zebbo",
+    "quantity": 6
+   },
+   {
+    "name": "Viola",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_LowerNorfairFarmingRoom_141.png"
+ },
+ "142": {
+  "name": "Ridley's Room",
+  "enemies": [
+   {
+    "name": "Ridley",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_RidleysRoom_142.png"
+ },
+ "143": {
+  "name": "Ridley Tank Room",
+  "enemies": [],
+  "diagram": "region/lowernorfair/roomDiagrams/east_RidleyTankRoom_143.png"
+ },
+ "144": {
+  "name": "Mickey Mouse Room",
+  "enemies": [
+   {
+    "name": "Multiviola",
+    "quantity": 7
+   },
+   {
+    "name": "Dessgeega",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_MickeyMouseRoom_144.png"
+ },
+ "145": {
+  "name": "Lower Norfair Fireflea Room",
+  "enemies": [
+   {
+    "name": "Fune",
+    "quantity": 4
+   },
+   {
+    "name": "Boulder",
+    "quantity": 3
+   },
+   {
+    "name": "Fireflea",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_LowerNorfairFirefleaRoom_145.png"
+ },
+ "146": {
+  "name": "Lower Norfair Spring Ball Maze",
+  "enemies": [
+   {
+    "name": "Alcoon",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_LowerNorfairSpringBallMaze_146.png"
+ },
+ "147": {
+  "name": "The Jail",
+  "enemies": [],
+  "diagram": "region/lowernorfair/roomDiagrams/east_TheJail_147.png"
+ },
+ "148": {
+  "name": "Three Musketeers' Room",
+  "enemies": [
+   {
+    "name": "Kihunter (red)",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/east_ThreeMusketeersRoom_148.png"
+ },
+ "149": {
+  "name": "Acid Statue Room",
+  "enemies": [
+   {
+    "name": "Holtz",
+    "quantity": 3
+   },
+   {
+    "name": "Magdollite",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/west_AcidStatueRoom_149.png"
+ },
+ "150": {
+  "name": "Golden Torizo's Room",
+  "enemies": [
+   {
+    "name": "Golden Torizo",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/west_GoldenTorizosRoom_150.png"
+ },
+ "151": {
+  "name": "Screw Attack Room",
+  "enemies": [],
+  "diagram": "region/lowernorfair/roomDiagrams/west_ScrewAttackRoom_151.png"
+ },
+ "152": {
+  "name": "Golden Torizo Energy Recharge",
+  "enemies": [],
+  "diagram": "region/lowernorfair/roomDiagrams/west_GoldenTorizoEnergyRecharge_152.png"
+ },
+ "153": {
+  "name": "Fast Ripper Room",
+  "enemies": [
+   {
+    "name": "Ripper 2 (red)",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/lowernorfair/roomDiagrams/west_FastRipperRoom_153.png"
+ },
+ "154": {
+  "name": "Wrecked Ship Entrance",
+  "enemies": [],
+  "diagram": "region/wreckedship/roomDiagrams/main_WreckedShipEntrance_154.png"
+ },
+ "155": {
+  "name": "Wrecked Ship Main Shaft",
+  "enemies": [
+   {
+    "name": "Covern",
+    "quantity": 1
+   },
+   {
+    "name": "Trapped Atomic",
+    "quantity": 2
+   },
+   {
+    "name": "Atomic",
+    "quantity": 4
+   },
+   {
+    "name": "Kzan",
+    "quantity": 4
+   },
+   {
+    "name": "Custom Covern (Atomic)",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_WreckedShipMainShaft_155.png"
+ },
+ "156": {
+  "name": "Basement",
+  "enemies": [
+   {
+    "name": "Atomic",
+    "quantity": 3
+   },
+   {
+    "name": "Workrobot",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_Basement_156.png"
+ },
+ "157": {
+  "name": "Wrecked Ship Map Room",
+  "enemies": [
+   {
+    "name": "Covern",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_WreckedShipMapRoom_157.png"
+ },
+ "158": {
+  "name": "Phantoon's Room",
+  "enemies": [
+   {
+    "name": "Phantoon",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_PhantoonsRoom_158.png"
+ },
+ "159": {
+  "name": "Wrecked Ship West Super Room",
+  "enemies": [],
+  "diagram": "region/wreckedship/roomDiagrams/main_WreckedShipWestSuperRoom_159.png"
+ },
+ "160": {
+  "name": "Attic",
+  "enemies": [
+   {
+    "name": "Covern",
+    "quantity": 1
+   },
+   {
+    "name": "Trapped Atomic",
+    "quantity": 9
+   },
+   {
+    "name": "Atomic",
+    "quantity": 4
+   },
+   {
+    "name": "Kihunter (yellow)",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_Attic_160.png"
+ },
+ "161": {
+  "name": "Bowling Alley",
+  "enemies": [
+   {
+    "name": "Workrobot",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_BowlingAlley_161.png"
+ },
+ "162": {
+  "name": "Gravity Suit Room",
+  "enemies": [],
+  "diagram": "region/wreckedship/roomDiagrams/main_GravitySuitRoom_162.png"
+ },
+ "163": {
+  "name": "Wrecked Ship East Super Room",
+  "enemies": [
+   {
+    "name": "Covern",
+    "quantity": 1
+   },
+   {
+    "name": "Bull",
+    "quantity": 2
+   },
+   {
+    "name": "Workrobot",
+    "quantity": 2
+   },
+   {
+    "name": "Trapped Atomic",
+    "quantity": 4
+   },
+   {
+    "name": "Custom Covern (Bull)",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_WreckedShipEastSuperRoom_163.png"
+ },
+ "164": {
+  "name": "Sponge Bath",
+  "enemies": [
+   {
+    "name": "Bull",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_SpongeBath_164.png"
+ },
+ "165": {
+  "name": "Spiky Death Room",
+  "enemies": [
+   {
+    "name": "Kzan",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_SpikyDeathRoom_165.png"
+ },
+ "166": {
+  "name": "Electric Death Room",
+  "enemies": [],
+  "diagram": "region/wreckedship/roomDiagrams/main_ElectricDeathRoom_166.png"
+ },
+ "167": {
+  "name": "Wrecked Ship Energy Tank Room",
+  "enemies": [
+   {
+    "name": "Skultera",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_WreckedShipEnergyTankRoom_167.png"
+ },
+ "168": {
+  "name": "Robot Assembly Line",
+  "enemies": [
+   {
+    "name": "Workrobot",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_RobotAssemblyLine_168.png"
+ },
+ "169": {
+  "name": "West Maridia Tube Tunnel",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/outer_WestMaridiaTubeTunnel_169.png"
+ },
+ "170": {
+  "name": "Maridia Tube",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/outer_MaridiaTube_170.png"
+ },
+ "171": {
+  "name": "Maridia Tube Save Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/outer_MaridiaTubeSaveRoom_171.png"
+ },
+ "172": {
+  "name": "Main Street",
+  "enemies": [
+   {
+    "name": "Sciser",
+    "quantity": 7
+   },
+   {
+    "name": "Skultera",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/outer_MainStreet_172.png"
+ },
+ "173": {
+  "name": "Fish Tank",
+  "enemies": [
+   {
+    "name": "Skultera",
+    "quantity": 4
+   },
+   {
+    "name": "Pink Space Pirate (standing)",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/outer_FishTank_173.png"
+ },
+ "174": {
+  "name": "Mt. Everest",
+  "enemies": [
+   {
+    "name": "Powamp",
+    "quantity": 3
+   },
+   {
+    "name": "Sciser",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/outer_MtEverest_174.png"
+ },
+ "175": {
+  "name": "Crab Shaft",
+  "enemies": [
+   {
+    "name": "Sciser",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_CrabShaft_175.png"
+ },
+ "176": {
+  "name": "Crab Gate Room",
+  "enemies": [
+   {
+    "name": "Sciser",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/outer_CrabGateRoom_176.png"
+ },
+ "177": {
+  "name": "Red Fish Room",
+  "enemies": [
+   {
+    "name": "Zebbo",
+    "quantity": 3
+   },
+   {
+    "name": "Skultera",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/outer_RedFishRoom_177.png"
+ },
+ "178": {
+  "name": "Mama Turtle Room",
+  "enemies": [
+   {
+    "name": "Kame (Tatori)",
+    "quantity": 1
+   },
+   {
+    "name": "Kame Baby",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/outer_MamaTurtleRoom_178.png"
+ },
+ "179": {
+  "name": "The Beach",
+  "enemies": [
+   {
+    "name": "Choot",
+    "quantity": 6
+   },
+   {
+    "name": "Skultera",
+    "quantity": 2
+   },
+   {
+    "name": "Owtch",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_TheBeach_179.png"
+ },
+ "180": {
+  "name": "Maridia Swiss Cheese Room",
+  "enemies": [
+   {
+    "name": "Owtch",
+    "quantity": 7
+   },
+   {
+    "name": "Menu",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_MaridiaSwissCheeseRoom_180.png"
+ },
+ "181": {
+  "name": "Watering Hole",
+  "enemies": [
+   {
+    "name": "Zeb",
+    "quantity": 2
+   },
+   {
+    "name": "Choot",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_WateringHole_181.png"
+ },
+ "182": {
+  "name": "Aqueduct Save Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_AqueductSaveRoom_182.png"
+ },
+ "183": {
+  "name": "Aqueduct",
+  "enemies": [
+   {
+    "name": "Yard",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_Aqueduct_183.png"
+ },
+ "184": {
+  "name": "Botwoon Hallway",
+  "enemies": [
+   {
+    "name": "Mochtroid",
+    "quantity": 4
+   },
+   {
+    "name": "Puyo",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_BotwoonHallway_184.png"
+ },
+ "185": {
+  "name": "Botwoon's Room",
+  "enemies": [
+   {
+    "name": "Botwoon 1",
+    "quantity": 1
+   },
+   {
+    "name": "Botwoon 2",
+    "quantity": 1
+   },
+   {
+    "name": "Reverse Botwoon 1",
+    "quantity": 1
+   },
+   {
+    "name": "Reverse Botwoon 2",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_BotwoonsRoom_185.png"
+ },
+ "186": {
+  "name": "Botwoon Energy Tank Room",
+  "enemies": [
+   {
+    "name": "Puyo",
+    "quantity": 5
+   },
+   {
+    "name": "Zoa",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_BotwoonEnergyTankRoom_186.png"
+ },
+ "187": {
+  "name": "Halfie Climb Room",
+  "enemies": [
+   {
+    "name": "Mochtroid",
+    "quantity": 3
+   },
+   {
+    "name": "Oum",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_HalfieClimbRoom_187.png"
+ },
+ "188": {
+  "name": "Maridia Missile Refill Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_MaridiaMissileRefillRoom_188.png"
+ },
+ "189": {
+  "name": "Colosseum",
+  "enemies": [
+   {
+    "name": "Mochtroid",
+    "quantity": 8
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_Colosseum_189.png"
+ },
+ "190": {
+  "name": "Draygon Save Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_DraygonSaveRoom_190.png"
+ },
+ "191": {
+  "name": "Maridia Health Refill Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_MaridiaHealthRefillRoom_191.png"
+ },
+ "192": {
+  "name": "The Precious Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_ThePreciousRoom_192.png"
+ },
+ "193": {
+  "name": "Draygon's Room",
+  "enemies": [
+   {
+    "name": "Draygon",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_DraygonsRoom_193.png"
+ },
+ "194": {
+  "name": "Space Jump Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_SpaceJumpRoom_194.png"
+ },
+ "195": {
+  "name": "West Cactus Alley",
+  "enemies": [
+   {
+    "name": "Cacatac",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_WestCactusAlley_195.png"
+ },
+ "196": {
+  "name": "East Cactus Alley",
+  "enemies": [
+   {
+    "name": "Cacatac",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_EastCactusAlley_196.png"
+ },
+ "197": {
+  "name": "Plasma Spark Room",
+  "enemies": [
+   {
+    "name": "Choot",
+    "quantity": 5
+   },
+   {
+    "name": "Owtch",
+    "quantity": 4
+   },
+   {
+    "name": "Skultera",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_PlasmaSparkRoom_197.png"
+ },
+ "198": {
+  "name": "Oasis",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-green_Oasis_198.png"
+ },
+ "199": {
+  "name": "West Sand Hall",
+  "enemies": [
+   {
+    "name": "Evir",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-green_WestSandHall_199.png"
+ },
+ "200": {
+  "name": "Boyon Gate Hall",
+  "enemies": [
+   {
+    "name": "Boyon",
+    "quantity": 7
+   },
+   {
+    "name": "Zebbo",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/outer_BoyonGateHall_200.png"
+ },
+ "201": {
+  "name": "Crab Hole",
+  "enemies": [
+   {
+    "name": "Sciser",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/outer_CrabHole_201.png"
+ },
+ "202": {
+  "name": "Lonely Crab Room",
+  "enemies": [
+   {
+    "name": "Sciser",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-green_LonelyCrabRoom_202.png"
+ },
+ "203": {
+  "name": "Maridia Map Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/outer_MaridiaMapRoom_203.png"
+ },
+ "204": {
+  "name": "Botwoon Quicksand Room",
+  "enemies": [
+   {
+    "name": "Bull",
+    "quantity": 9
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_BotwoonQuicksandRoom_204.png"
+ },
+ "205": {
+  "name": "Below Botwoon Energy Tank",
+  "enemies": [
+   {
+    "name": "Zoa",
+    "quantity": 5
+   },
+   {
+    "name": "Owtch",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_BelowBotwoonEnergyTank_205.png"
+ },
+ "206": {
+  "name": "West Aqueduct Quicksand Room",
+  "enemies": [
+   {
+    "name": "Bull",
+    "quantity": 7
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_WestAqueductQuicksandRoom_206.png"
+ },
+ "207": {
+  "name": "East Aqueduct Quicksand Room",
+  "enemies": [
+   {
+    "name": "Bull",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_EastAqueductQuicksandRoom_207.png"
+ },
+ "208": {
+  "name": "East Sand Pit",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_EastSandPit_208.png"
+ },
+ "209": {
+  "name": "West Sand Pit",
+  "enemies": [
+   {
+    "name": "Boulder",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_WestSandPit_209.png"
+ },
+ "210": {
+  "name": "East Sand Hall",
+  "enemies": [
+   {
+    "name": "Evir",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-green_EastSandHall_210.png"
+ },
+ "211": {
+  "name": "Yoink Room",
+  "enemies": [
+   {
+    "name": "Zoa",
+    "quantity": 1
+   },
+   {
+    "name": "Yapping Maw",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_YoinkRoom_211.png"
+ },
+ "212": {
+  "name": "Plasma Beach Quicksand Room",
+  "enemies": [
+   {
+    "name": "Bull",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_PlasmaBeachQuicksandRoom_212.png"
+ },
+ "213": {
+  "name": "Butterfly Room",
+  "enemies": [
+   {
+    "name": "Zoa",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_ButterflyRoom_213.png"
+ },
+ "214": {
+  "name": "Thread The Needle Room",
+  "enemies": [
+   {
+    "name": "Choot",
+    "quantity": 8
+   },
+   {
+    "name": "Puyo",
+    "quantity": 7
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_ThreadTheNeedleRoom_214.png"
+ },
+ "215": {
+  "name": "Maridia Elevator Room",
+  "enemies": [
+   {
+    "name": "Owtch",
+    "quantity": 1
+   },
+   {
+    "name": "Ripper",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_MaridiaElevatorRoom_215.png"
+ },
+ "216": {
+  "name": "Forgotten Highway Save Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_ForgottenHighwaySaveRoom_216.png"
+ },
+ "217": {
+  "name": "Kassiuz Room",
+  "enemies": [
+   {
+    "name": "Choot",
+    "quantity": 3
+   },
+   {
+    "name": "Puyo",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_KassiuzRoom_217.png"
+ },
+ "218": {
+  "name": "Plasma Tutorial Room",
+  "enemies": [
+   {
+    "name": "Puyo",
+    "quantity": 6
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_PlasmaTutorialRoom_218.png"
+ },
+ "219": {
+  "name": "Plasma Room",
+  "enemies": [
+   {
+    "name": "Pink Space Pirate (standing)",
+    "quantity": 4
+   },
+   {
+    "name": "Pink Space Pirate (wall)",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-yellow_PlasmaRoom_219.png"
+ },
+ "220": {
+  "name": "Pants Room",
+  "enemies": [
+   {
+    "name": "Menu",
+    "quantity": 6
+   },
+   {
+    "name": "Puyo",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-green_PantsRoom_220.png"
+ },
+ "222": {
+  "name": "Shaktool Room",
+  "enemies": [
+   {
+    "name": "Shaktool",
+    "quantity": 1
+   },
+   {
+    "name": "Yard",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-green_ShaktoolRoom_222.png"
+ },
+ "223": {
+  "name": "Spring Ball Room",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-green_SpringBallRoom_223.png"
+ },
+ "224": {
+  "name": "Tourian First Room",
+  "enemies": [],
+  "diagram": "region/tourian/roomDiagrams/main_TourianFirstRoom_224.png"
+ },
+ "225": {
+  "name": "Upper Tourian Save Room",
+  "enemies": [],
+  "diagram": "region/tourian/roomDiagrams/main_UpperTourianSaveRoom_225.png"
+ },
+ "226": {
+  "name": "Metroid Room 1",
+  "enemies": [
+   {
+    "name": "Metroid",
+    "quantity": 4
+   },
+   {
+    "name": "Rinka",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_MetroidRoom1_226.png"
+ },
+ "227": {
+  "name": "Metroid Room 2",
+  "enemies": [
+   {
+    "name": "Metroid",
+    "quantity": 2
+   },
+   {
+    "name": "Rinka",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_MetroidRoom2_227.png"
+ },
+ "228": {
+  "name": "Metroid Room 3",
+  "enemies": [
+   {
+    "name": "Metroid",
+    "quantity": 3
+   },
+   {
+    "name": "Rinka",
+    "quantity": 9
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_MetroidRoom3_228.png"
+ },
+ "229": {
+  "name": "Metroid Room 4",
+  "enemies": [
+   {
+    "name": "Metroid",
+    "quantity": 3
+   },
+   {
+    "name": "Rinka",
+    "quantity": 4
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_MetroidRoom4_229.png"
+ },
+ "230": {
+  "name": "Tourian Hopper Room",
+  "enemies": [
+   {
+    "name": "Blue Sidehopper",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_TourianHopperRoom_230.png"
+ },
+ "231": {
+  "name": "Dust Torizo Room",
+  "enemies": [],
+  "diagram": "region/tourian/roomDiagrams/main_DustTorizoRoom_231.png"
+ },
+ "232": {
+  "name": "Big Boy Room",
+  "enemies": [],
+  "diagram": "region/tourian/roomDiagrams/main_BigBoyRoom_232.png"
+ },
+ "233": {
+  "name": "Seaweed Room",
+  "enemies": [],
+  "diagram": "region/tourian/roomDiagrams/main_SeaweedRoom_233.png"
+ },
+ "234": {
+  "name": "Tourian Recharge Room",
+  "enemies": [],
+  "diagram": "region/tourian/roomDiagrams/main_TourianRechargeRoom_234.png"
+ },
+ "235": {
+  "name": "Tourian Eye Door Room",
+  "enemies": [],
+  "diagram": "region/tourian/roomDiagrams/main_TourianEyeDoorRoom_235.png"
+ },
+ "236": {
+  "name": "Rinka Shaft",
+  "enemies": [
+   {
+    "name": "Rinka",
+    "quantity": 3
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_RinkaShaft_236.png"
+ },
+ "237": {
+  "name": "Lower Tourian Save Room",
+  "enemies": [],
+  "diagram": "region/tourian/roomDiagrams/main_LowerTourianSaveRoom_237.png"
+ },
+ "238": {
+  "name": "Mother Brain Room",
+  "enemies": [
+   {
+    "name": "Rinka",
+    "quantity": 11
+   },
+   {
+    "name": "Mother Brain 1",
+    "quantity": 1
+   },
+   {
+    "name": "Mother Brain 2",
+    "quantity": 1
+   },
+   {
+    "name": "Mother Brain 3",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_MotherBrainRoom_238.png"
+ },
+ "239": {
+  "name": "Tourian Escape Room 1",
+  "enemies": [],
+  "diagram": "region/tourian/roomDiagrams/main_TourianEscapeRoom1_239.png"
+ },
+ "240": {
+  "name": "Tourian Escape Room 2",
+  "enemies": [
+   {
+    "name": "Tourian Space Pirate (all)",
+    "quantity": 2
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_TourianEscapeRoom2_240.png"
+ },
+ "241": {
+  "name": "Tourian Escape Room 3",
+  "enemies": [
+   {
+    "name": "Tourian Space Pirate (all)",
+    "quantity": 7
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_TourianEscapeRoom3_241.png"
+ },
+ "242": {
+  "name": "Tourian Escape Room 4",
+  "enemies": [
+   {
+    "name": "Tourian Space Pirate (all)",
+    "quantity": 13
+   }
+  ],
+  "diagram": "region/tourian/roomDiagrams/main_TourianEscapeRoom4_242.png"
+ },
+ "300": {
+  "name": "Kraid Save Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/kraid_KraidSaveRoom_300.png"
+ },
+ "301": {
+  "name": "Kraid Recharge Station",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/kraid_KraidRechargeStation_301.png"
+ },
+ "302": {
+  "name": "Frog Savestation",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/east_FrogSavestation_302.png"
+ },
+ "303": {
+  "name": "Crocomire Save Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/west_CrocomireSaveRoom_303.png"
+ },
+ "304": {
+  "name": "Wrecked Ship Save Room",
+  "enemies": [
+   {
+    "name": "Covern",
+    "quantity": 1
+   }
+  ],
+  "diagram": "region/wreckedship/roomDiagrams/main_WreckedShipSaveRoom_304.png"
+ },
+ "305": {
+  "name": "Forgotten Highway Elbow",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/east_ForgottenHighwayElbow_305.png"
+ },
+ "306": {
+  "name": "Blue Brinstar Elevator Room",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/central_BlueBrinstarElevatorRoom_306.png"
+ },
+ "307": {
+  "name": "Bubble Mountain Save Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/east_BubbleMountainSaveRoom_307.png"
+ },
+ "308": {
+  "name": "Nutella Refill",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/east_NutellaRefill_308.png"
+ },
+ "309": {
+  "name": "Lower Norfair Elevator",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/east_LowerNorfairElevator_309.png"
+ },
+ "310": {
+  "name": "Lower Norfair Elevator Save Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/east_LowerNorfairElevatorSaveRoom_310.png"
+ },
+ "311": {
+  "name": "Post Crocomire Save Room",
+  "enemies": [],
+  "diagram": "region/norfair/roomDiagrams/crocomire_PostCrocomireSaveRoom_311.png"
+ },
+ "312": {
+  "name": "Red Kihunter Shaft Save Room",
+  "enemies": [],
+  "diagram": "region/lowernorfair/roomDiagrams/east_RedKihunterShaftSaveRoom_312.png"
+ },
+ "313": {
+  "name": "Homing Geemer Room",
+  "enemies": [],
+  "diagram": "region/crateria/roomDiagrams/east_HomingGeemerRoom_313.png"
+ },
+ "314": {
+  "name": "Green Brinstar Save Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/green_GreenBrinstarSaveRoom_314.png"
+ },
+ "315": {
+  "name": "Etecoon Save Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/green_EtecoonSaveRoom_315.png"
+ },
+ "316": {
+  "name": "Green Brinstar Missile Refill",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/green_GreenBrinstarMissileRefill_316.png"
+ },
+ "317": {
+  "name": "Dachora Energy Refill",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/pink_DachoraEnergyRefill_317.png"
+ },
+ "318": {
+  "name": "Big Pink Save Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/pink_BigPinkSaveRoom_318.png"
+ },
+ "319": {
+  "name": "Sloaters Refill",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/red_SloatersRefill_319.png"
+ },
+ "320": {
+  "name": "Caterpillar Save Room",
+  "enemies": [],
+  "diagram": "region/brinstar/roomDiagrams/red_CaterpillarSaveRoom_320.png"
+ },
+ "321": {
+  "name": "Toilet Bowl",
+  "enemies": [],
+  "diagram": "region/maridia/roomDiagrams/inner-pink_ToiletBowl_321.png"
+ },
+ "322": {
+  "name": "East Pants Room",
+  "enemies": [
+   {
+    "name": "Puyo",
+    "quantity": 5
+   }
+  ],
+  "diagram": "region/maridia/roomDiagrams/inner-green_EastPantsRoom_322.png"
+ }
+}

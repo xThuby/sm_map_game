@@ -4,7 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildAllRooms } from '../tools/transform';
-import type { RawGeoRoom, RawTileRoom } from '../tools/transform';
+import type { RawGeoRoom, RawTileRoom, VanillaMap } from '../tools/transform';
 import { visualSignature, SHAPE_ONLY, FULLY_VISIBLE } from '../src/signature';
 import type { RenderSettings, Room } from '../src/types';
 
@@ -14,8 +14,9 @@ const readRaw = <T>(f: string): T =>
 
 const rawTiles = readRaw<{ rooms: RawTileRoom[] }>('map_tiles.json').rooms;
 const rawGeo = readRaw<RawGeoRoom[]>('room_geometry.json');
-const smNames = readRaw<Record<string, string>>('sm_json_names.json');
-const rooms: Room[] = buildAllRooms(rawTiles, rawGeo, smNames);
+const smJson = readRaw<Record<string, { name?: string }>>('sm_json_rooms.json');
+const vanillaMap = readRaw<VanillaMap>('vanilla_map.json');
+const rooms: Room[] = buildAllRooms(rawTiles, rawGeo, smJson, vanillaMap);
 
 const byName = new Map(rooms.map((r) => [r.name, r]));
 const tally = <T>(xs: T[]): Record<string, number> => {
@@ -150,7 +151,7 @@ describe('corpus: aliases', () => {
   });
 
   it('has an sm-json-data name for every one of the 253 rooms', () => {
-    for (const r of rooms) expect(smNames[String(r.id)]).toBeTypeOf('string');
+    for (const r of rooms) expect(smJson[String(r.id)]?.name).toBeTypeOf('string');
   });
 
   it('knows the rooms players are most likely to name differently', () => {
@@ -293,5 +294,40 @@ describe('corpus: the committed rooms.json', () => {
    */
   it('is exactly what the current transform produces from data/raw', () => {
     expect(generated.rooms).toEqual(rooms);
+  });
+});
+
+describe('corpus: hint data', () => {
+  // sm-json-data lists enemies for 173 of its 261 rooms, but 2 of those are Ceres rooms
+  // that have no map tiles and so are not ours.
+  it('gives 171 of our rooms an enemy list', () => {
+    expect(rooms.filter((r) => r.enemies.length > 0)).toHaveLength(171);
+  });
+
+  it('knows Volcano Room has six Fune', () => {
+    expect(byName.get('Volcano Room')?.enemies).toEqual([{ name: 'Fune', quantity: 6 }]);
+  });
+
+  it('gives all but two rooms at least one vanilla neighbour', () => {
+    expect(rooms.filter((r) => r.neighbours.length === 0)).toHaveLength(2);
+  });
+
+  it('knows what Landing Site connects to in vanilla', () => {
+    expect(byName.get('Landing Site')?.neighbours.slice().sort()).toEqual([
+      'Crateria Power Bomb Room', 'Crateria Tube', 'Gauntlet Entrance', 'Parlor and Alcatraz',
+    ]);
+  });
+
+  it('makes neighbours mutual', () => {
+    const byNameMap = new Map(rooms.map((r) => [r.name, r]));
+    for (const r of rooms) {
+      for (const n of r.neighbours) {
+        expect(byNameMap.get(n)?.neighbours, `${r.name} -> ${n}`).toContain(r.name);
+      }
+    }
+  });
+
+  it('gives every room a diagram image path', () => {
+    expect(rooms.filter((r) => r.diagram === null)).toHaveLength(0);
   });
 });

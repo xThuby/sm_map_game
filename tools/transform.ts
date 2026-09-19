@@ -24,12 +24,31 @@ export interface RawTileRoom {
 }
 
 /** A room as stored in MapRandomizer's room_geometry.json. */
+/** A vanilla map door: [[exitA, entranceA], [exitB, entranceB], bidirectional]. */
+export type VanillaDoor = [[number, number], [number, number], boolean];
+
+export interface VanillaMap {
+  rooms: [number, number][];
+  doors: VanillaDoor[];
+}
+
+/** The per-room facts pulled out of sm-json-data. */
+export interface SmJsonRoom {
+  name?: string;
+  enemies?: { name: string; quantity: number }[];
+  neighbours?: string[];
+  diagram?: string | null;
+}
+
 export interface RawGeoRoom {
   room_id: number;
   name: string;
   area: number;
   map: number[][];
-  doors: { direction: Direction; x: number; y: number; subtype: DoorSubtype }[];
+  doors: {
+    direction: Direction; x: number; y: number; subtype: DoorSubtype;
+    exit_ptr?: number | null; entrance_ptr?: number | null;
+  }[];
   items: { x: number; y: number; addr: number }[];
   parts: number[][];
   durable_part_connections: [number, number][];
@@ -166,7 +185,43 @@ export function deriveOneWay(geo: RawGeoRoom): OneWay | null {
   };
 }
 
-export function buildRoom(rawTile: RawTileRoom, geo: RawGeoRoom, aliases: string[] = []): Room {
+/**
+ * Which rooms touch which on the vanilla map, as room ids keyed by room id.
+ *
+ * The vanilla map lists door connections by ROM pointer, so each side is matched back to the
+ * room owning that exit pointer. Doors that loop within one room are dropped.
+ *
+ * Ids rather than names: room_geometry spells two rooms differently from map_tiles, which is
+ * canonical here, so resolving names once at the end avoids a neighbour that matches no room.
+ */
+export function deriveNeighbours(
+  geo: RawGeoRoom[],
+  map: VanillaMap,
+): Record<number, number[]> {
+  const roomOfExit = new Map<number, RawGeoRoom>();
+  for (const room of geo) {
+    for (const door of room.doors) {
+      if (typeof door.exit_ptr === 'number') roomOfExit.set(door.exit_ptr, room);
+    }
+  }
+
+  const found = new Map<number, Set<number>>(geo.map((r) => [r.room_id, new Set()]));
+  for (const [[exitA], [exitB]] of map.doors) {
+    const a = roomOfExit.get(exitA);
+    const b = roomOfExit.get(exitB);
+    if (!a || !b || a.room_id === b.room_id) continue;
+    found.get(a.room_id)?.add(b.room_id);
+    found.get(b.room_id)?.add(a.room_id);
+  }
+  return Object.fromEntries([...found].map(([id, ids]) => [id, [...ids]]));
+}
+
+export function buildRoom(
+  rawTile: RawTileRoom,
+  geo: RawGeoRoom,
+  aliases: string[] = [],
+  extra: SmJsonRoom = {},
+): Room {
   if (rawTile.roomId !== geo.room_id) {
     throw new Error(
       `Room id mismatch: map_tiles has ${rawTile.roomId}, room_geometry has ${geo.room_id}`,
@@ -203,21 +258,35 @@ export function buildRoom(rawTile: RawTileRoom, geo: RawGeoRoom, aliases: string
     utilities: deriveUtilities(tiles),
     hasElevator: deriveHasElevator(tiles),
     oneWay: deriveOneWay(geo),
+    enemies: extra.enemies ?? [],
+    neighbours: extra.neighbours ?? [],
+    diagram: extra.diagram ?? null,
   };
 }
 
 export function buildAllRooms(
   rawTiles: RawTileRoom[],
   rawGeo: RawGeoRoom[],
-  smJsonNames: Record<string, string> = {},
+  smJson: Record<string, SmJsonRoom> = {},
+  vanillaMap?: VanillaMap,
 ): Room[] {
   const geoById = new Map(rawGeo.map((g) => [g.room_id, g]));
   if (geoById.size !== rawGeo.length) throw new Error('room_geometry contains duplicate room ids');
 
+  const neighbours = vanillaMap ? deriveNeighbours(rawGeo, vanillaMap) : {};
+  const canonicalName = new Map(rawTiles.map((t) => [t.roomId, t.roomName]));
+
   const rooms = rawTiles.map((t) => {
     const geo = geoById.get(t.roomId);
     if (!geo) throw new Error(`Room ${t.roomId} (${t.roomName}) is missing from room_geometry`);
-    return buildRoom(t, geo, deriveAliases(t.roomName, smJsonNames[String(t.roomId)]));
+    const extra = smJson[String(t.roomId)] ?? {};
+    return buildRoom(t, geo, deriveAliases(t.roomName, extra.name), {
+      ...extra,
+      neighbours: (neighbours[geo.room_id] ?? [])
+        .map((id) => canonicalName.get(id))
+        .filter((name): name is string => name !== undefined)
+        .sort(),
+    });
   });
 
   if (rooms.length !== rawGeo.length) {
