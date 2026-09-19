@@ -3,7 +3,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mountApp, ALIAS_ISSUE_BASE, plural } from './app';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS, MAX_TILE_SIZE, VIEWPORT } from '../render/renderer';
-import { MAX_GUESSES, ROUND_LENGTH, STARTING_POINTS, HINT_COSTS } from '../game/session';
+import {
+  MAX_GUESSES, ROUND_LENGTH, STARTING_POINTS, HINT_COSTS, HINT_ORDER, NAME_LETTERS,
+} from '../game/session';
 import type { Renderer } from '../render/renderer';
 import type { App } from './app';
 
@@ -207,7 +209,7 @@ describe('moving on', () => {
     click('button[data-action=next]');
     expect(q<HTMLInputElement>('input[name=answer]').value).toBe('');
     expect(q('[data-role=verdict]').textContent).toBe('');
-    expect(q('[data-role=room-name]').textContent).toBe('???');
+    expect(q('[data-role=room-name]').textContent).not.toMatch(/[A-Za-z0-9]/);
     expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
   });
 
@@ -695,9 +697,10 @@ describe('the fact panel', () => {
   const facts = () => [...root.querySelectorAll('[data-role=fact]')]
     .map((li) => li.textContent?.replace(/\s+/g, ' ').trim() ?? '');
 
-  it('starts with the name and every hinted fact unknown', () => {
+  /** The shape of the name, and not one letter of it, is free — it is on the map already. */
+  it('starts with the name masked and every hinted fact unknown', () => {
     only('Watering Hole');
-    expect(q('[data-role=room-name]').textContent).toBe('???');
+    expect(q('[data-role=room-name]').textContent).toBe('________ ____');
     for (const kind of ['area', 'enemies', 'neighbour']) expect(buyButton(kind), kind).toBeTruthy();
     expect(facts().join(' ')).not.toContain('Maridia');
   });
@@ -721,10 +724,19 @@ describe('the fact panel', () => {
     expect(buyButton('enemies')).toBeTruthy();
   });
 
-  it('turns the name into its hangman shape when that hint is bought', () => {
+  it('uncovers a letter of each word when a name letter is bought', () => {
     only('Volcano Room');
+    expect(q('[data-role=room-name]').textContent).toBe('_______ ____');
     buy('name');
     expect(q('[data-role=room-name]').textContent).toBe('V______ R___');
+    buy('name');
+    expect(q('[data-role=room-name]').textContent).toBe('Vo_____ Ro__');
+  });
+
+  it('stops selling letters once the name hint is used up', () => {
+    only('Volcano Room');
+    for (let i = 0; i < NAME_LETTERS; i += 1) buy('name');
+    expect(buyButton('name')).toBeNull();
   });
 
   it('names the room once it is over', () => {
@@ -874,7 +886,9 @@ describe('buying hints', () => {
   /** The picture is not a fact in the list; it stands in for the map, so it is bought there. */
   it("puts the picture's price beside the room, in the left column", () => {
     only('Volcano Room');
-    expect(q<HTMLDivElement>('[data-role=left]').contains(buyButton('diagram'))).toBe(true);
+    const left = q<HTMLDivElement>('[data-role=left]');
+    expect(left.contains(buyButton('diagram'))).toBe(true);
+    expect(q('[data-role=buy-diagram]').textContent).toContain('Room graphics');
   });
 
   it('spends the points and reveals the fact', () => {
@@ -898,15 +912,18 @@ describe('buying hints', () => {
     expect(q('[data-role=guesses]').textContent).toContain(String(MAX_GUESSES));
   });
 
-  /** You cannot have every hint on one room, so what is unaffordable has to show as such. */
-  it('turns off what there is no longer the money for', () => {
+  /** Buying the lot still leaves something to win, so nothing is ever priced out of reach. */
+  it('lets every hint be bought on one room, and still pays for naming it', () => {
     only('Volcano Room');
-    buy('name');
-    buy('diagram');
-    buy('neighbour');
-    expect(q('[data-role=points]').textContent).toContain('0');
-    expect(buyButton('area')?.disabled).toBe(true);
-    expect(buyButton('enemies')?.disabled).toBe(true);
+    for (const kind of HINT_ORDER) {
+      expect(buyButton(kind)?.disabled, kind).toBe(false);
+      buy(kind);
+    }
+    for (let i = 1; i < NAME_LETTERS; i += 1) buy('name');
+    expect(q('[data-role=points]').textContent).toContain('5 points');
+    type('Volcano Room');
+    click('button[data-action=guess]');
+    expect(q('[data-role=points]').textContent).toContain('5 points');
   });
 
   it('has nothing left to sell once the room is over', () => {

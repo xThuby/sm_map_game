@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createSession, shuffleBag, MAX_GUESSES, HINT_ORDER, HINT_COSTS, STARTING_POINTS,
-  nameHint, ROUND_LENGTH,
+  NAME_LETTERS, nameHint, ROUND_LENGTH,
 } from './session';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS } from '../render/renderer';
@@ -108,18 +108,25 @@ describe('guesses', () => {
 });
 
 describe('buying hints', () => {
+  /** The name is priced per letter, so it is the only one that costs twice. */
   it('prices the hints as advertised', () => {
-    expect(HINT_COSTS).toEqual({ area: 10, enemies: 10, neighbour: 20, diagram: 30, name: 50 });
+    expect(HINT_COSTS).toEqual({ area: 5, enemies: 10, neighbour: 15, diagram: 15, name: 25 });
   });
 
   /**
-   * Every hint at once costs more than a room is worth, so buying is a real choice rather
-   * than a schedule. Knowing the room but not its name should be buyable; knowing nothing
-   * and buying everything should not.
+   * A player who buys the lot still walks away with something for naming the room. That is
+   * the whole point of the prices: every hint is always within reach, and the cost of taking
+   * them all is that the room is worth 5 instead of 100 — not that it is worth nothing.
    */
-  it('costs more to buy every hint than a room is worth', () => {
-    const total = HINT_ORDER.reduce((sum, kind) => sum + HINT_COSTS[kind], 0);
-    expect(total).toBeGreaterThan(STARTING_POINTS);
+  it('leaves a little over when every hint is bought', () => {
+    const s = only('Volcano Room');
+    for (const kind of HINT_ORDER) {
+      expect(s.offers().find((o) => o.kind === kind)?.affordable, kind).toBe(true);
+      s.buyHint(kind);
+    }
+    for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
+    expect(s.points()).toBe(5);
+    expect(s.offers().every((o) => o.bought)).toBe(true);
   });
 
   it('offers every hint from the start, priced and unbought', () => {
@@ -144,6 +151,35 @@ describe('buying hints', () => {
     expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name);
   });
 
+  it('sells the name a letter at a time', () => {
+    const s = only('Volcano Room');
+    expect(s.nameLetters()).toBe(0);
+    s.buyHint('name');
+    expect(s.nameLetters()).toBe(1);
+    expect(s.hints().find((h) => h.kind === 'name')?.text).toBe('V______ R___');
+    s.buyHint('name');
+    expect(s.nameLetters()).toBe(2);
+    expect(s.hints().find((h) => h.kind === 'name')?.text).toBe('Vo_____ Ro__');
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name * 2);
+  });
+
+  it('stops selling letters at the limit', () => {
+    const s = only('Volcano Room');
+    for (let i = 0; i < NAME_LETTERS; i += 1) s.buyHint('name');
+    expect(() => s.buyHint('name')).toThrow(/already/i);
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name * NAME_LETTERS);
+  });
+
+  it('counts the name as bought only once every letter is paid for', () => {
+    const s = only('Volcano Room');
+    s.buyHint('name');
+    expect(s.offers().find((o) => o.kind === 'name')?.bought).toBe(false);
+    expect(s.offers().find((o) => o.kind === 'name')?.affordable).toBe(true);
+    s.buyHint('name');
+    expect(s.offers().find((o) => o.kind === 'name')?.bought).toBe(true);
+    expect(s.offers().find((o) => o.kind === 'name')?.affordable).toBe(false);
+  });
+
   it('lists what has been bought in a settled order, whatever order it was bought in', () => {
     const s = only('Volcano Room');
     s.buyHint('neighbour');
@@ -165,32 +201,19 @@ describe('buying hints', () => {
     expect(s.offers().find((o) => o.kind === 'enemies')?.bought).toBe(false);
   });
 
-  it('stops offering what there is no longer the money for', () => {
-    const s = only('Volcano Room');
-    s.buyHint('name');
-    s.buyHint('diagram');
-    expect(s.points()).toBe(20);
-    expect(s.offers().find((o) => o.kind === 'neighbour')?.affordable).toBe(true);
-    s.buyHint('neighbour');
-    expect(s.points()).toBe(0);
-    expect(s.offers().some((o) => o.affordable)).toBe(false);
-  });
-
-  it('refuses a hint there are no points for, and charges nothing', () => {
-    const s = only('Volcano Room');
-    s.buyHint('name');
-    s.buyHint('diagram');
-    s.buyHint('neighbour');
-    expect(() => s.buyHint('area')).toThrow(/points/i);
-    expect(s.points()).toBe(0);
-    expect(s.hints().map((h) => h.kind)).not.toContain('area');
-  });
-
   it('keeps what was left when the room is solved', () => {
     const s = only('Volcano Room');
     s.buyHint('area');
     s.guess('Volcano Room');
     expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.area);
+  });
+
+  it('resets the name letters on the next room', () => {
+    const s = only('Volcano Room');
+    s.buyHint('name');
+    s.guess('Volcano Room');
+    s.next();
+    expect(s.nameLetters()).toBe(0);
   });
 
   it('is worth nothing once the room is lost', () => {
@@ -244,8 +267,8 @@ describe('hints', () => {
   });
 
   /** The most expensive, and the most generous: the shape of the name itself. */
-  it('sketches the name', () => {
-    expect(allHints('Volcano Room').get('name')).toBe('V______ R___');
+  it('sketches the name, every letter it sells, once the room is over', () => {
+    expect(allHints('Volcano Room').get('name')).toBe('Vo_____ Ro__');
   });
 
   it('gives a diagram url that is absolute and pinned', () => {
@@ -300,33 +323,55 @@ describe('scoring and progress', () => {
 });
 
 describe('nameHint', () => {
+  /** Nothing given away at all: the shape of the name, and not one letter of it. */
+  it('masks every letter when no letter has been bought', () => {
+    expect(nameHint('Landing Site', 0)).toBe('_______ ____');
+    expect(nameHint('Metroid Room 1', 0)).toBe('_______ ____ _');
+  });
+
   it('shows the first letter of each word and hides the rest', () => {
-    expect(nameHint('Landing Site')).toBe('L______ S___');
-    expect(nameHint('The Moat')).toBe('T__ M___');
+    expect(nameHint('Landing Site', 1)).toBe('L______ S___');
+    expect(nameHint('The Moat', 1)).toBe('T__ M___');
+  });
+
+  it('shows two letters of each word for the second letter bought', () => {
+    expect(nameHint('Landing Site', 2)).toBe('La_____ Si__');
+    expect(nameHint('The Moat', 2)).toBe('Th_ Mo__');
   });
 
   it('keeps the punctuation, which is part of the shape', () => {
-    expect(nameHint("Crocomire's Room")).toBe("C________'_ R___");
+    expect(nameHint("Crocomire's Room", 0)).toBe("_________'_ ____");
+    expect(nameHint("Crocomire's Room", 1)).toBe("C________'_ R___");
+    expect(nameHint("Crocomire's Room", 2)).toBe("Cr_______'_ Ro__");
   });
 
   /** A word is what the spaces separate, so a hyphen does not start a new one. */
-  it('gives away only one letter of a hyphenated word', () => {
-    expect(nameHint('Pre-Map Flyway')).toBe('P__-___ F_____');
+  it('counts letters across a hyphen, which starts no new word', () => {
+    expect(nameHint('Pre-Map Flyway', 1)).toBe('P__-___ F_____');
+    expect(nameHint('Pre-Map Flyway', 2)).toBe('Pr_-___ Fl____');
   });
 
-  it('leaves a single-character word as itself', () => {
-    expect(nameHint('Metroid Room 1')).toBe('M______ R___ 1');
+  it('leaves a word shorter than the letters bought as itself', () => {
+    expect(nameHint('Metroid Room 1', 1)).toBe('M______ R___ 1');
+    expect(nameHint('Metroid Room 1', 2)).toBe('Me_____ Ro__ 1');
   });
 
-  it('never leaks a letter beyond the first of a word', () => {
+  it('never leaks a letter beyond the ones bought', () => {
     for (const room of loadRooms()) {
-      const masked = nameHint(room.name);
-      expect(masked).toHaveLength(room.name.length);
-      for (const [i, ch] of [...masked].entries()) {
-        if (ch === '_') continue;
-        const before = room.name[i - 1];
-        const isWordStart = i === 0 || !/[A-Za-z0-9]/.test(before ?? '');
-        expect(isWordStart || !/[A-Za-z0-9]/.test(ch), `${room.name} at ${i}`).toBe(true);
+      for (let letters = 0; letters <= NAME_LETTERS; letters += 1) {
+        const masked = nameHint(room.name, letters);
+        expect(masked, room.name).toHaveLength(room.name.length);
+        // What is shown must be exactly the first `letters` letters of each word.
+        for (const [w, word] of room.name.split(' ').entries()) {
+          const shown = [...(masked.split(' ')[w] as string)];
+          let given = 0;
+          for (const [i, ch] of shown.entries()) {
+            const real = word[i] as string;
+            if (!/[A-Za-z0-9]/.test(real)) { expect(ch).toBe(real); continue; }
+            given += 1;
+            expect(ch, `${room.name} at ${i}`).toBe(given <= letters ? real : '_');
+          }
+        }
       }
     }
   });

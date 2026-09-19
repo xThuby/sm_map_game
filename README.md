@@ -7,11 +7,11 @@ contains — heat, liquid, items, doors, one-way exits.
 Live: https://xthuby.github.io/sm_map_game/
 
 Each room starts at 100 points and gives you six guesses. Hints are on sale from the start
-rather than handed out on a schedule — the original map area and the enemy list cost 10 each,
-the connecting rooms 20, the room's own in-game picture 30, and the shape of the name 50.
-That comes to 120, so you cannot buy them all: knowing the room but not its name is the case
-this is for, and the name hint is priced to be worth agonising over. A room you never get is
-worth nothing, whatever you spent on it.
+rather than handed out on a schedule — the original map area costs 5, the enemy list 10, the
+connecting rooms 15, the room graphics 15, and the name 25 a letter for two letters. The
+room's name is masked from the start, so its shape is free; each letter bought uncovers one
+more of every word. Buying the lot comes to 95, so naming the room after spending everything
+still pays. A room you never get is worth nothing, whatever you spent on it.
 
 A round is six rooms; after each one you get a summary of how it went — points won, guesses
 taken, rooms going worst — against your running stats, which are kept in the browser.

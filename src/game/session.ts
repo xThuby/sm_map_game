@@ -17,20 +17,28 @@ export type HintKind = 'area' | 'enemies' | 'neighbour' | 'diagram' | 'name';
 /** Least to most generous. The name itself is the last thing worth giving away. */
 export const HINT_ORDER: HintKind[] = ['area', 'enemies', 'neighbour', 'diagram', 'name'];
 
+/** How many letters of each word the name hint will give away, one purchase each. */
+export const NAME_LETTERS = 2;
+
 /**
- * What each hint costs out of the room's hundred points.
+ * What each hint costs out of the room's hundred points — for the name, what each letter of
+ * it costs, so the whole name comes to 50.
  *
- * Every hint together comes to 120, which is deliberately more than a room is worth: the
- * player has to decide which ones are worth having rather than working down a list. The
- * name is half a room on its own, because knowing the room and not being able to name it
- * is the case this is all for — it should be buyable, and it should hurt.
+ * Everything together comes to 95, so a player who buys the lot still takes 5 points for
+ * naming the room. Knowing the room and not being able to name it is the case this is all
+ * for: the way out of it has to be affordable, and it has to leave something behind.
  */
 export const HINT_COSTS: Record<HintKind, number> = {
-  area: 10,
+  area: 5,
   enemies: 10,
-  neighbour: 20,
-  diagram: 30,
-  name: 50,
+  neighbour: 15,
+  diagram: 15,
+  name: 25,
+};
+
+/** How many times each hint can be bought. Only the name is sold more than once. */
+const HINT_LIMITS: Record<HintKind, number> = {
+  area: 1, enemies: 1, neighbour: 1, diagram: 1, name: NAME_LETTERS,
 };
 
 const HINT_LABELS: Record<HintKind, string> = {
@@ -42,20 +50,22 @@ const HINT_LABELS: Record<HintKind, string> = {
 };
 
 /**
- * The name with everything but the first letter of each word struck out, as in hangman.
+ * The name with all but the first `letters` letters of each word struck out, as in hangman.
+ * At zero it gives away nothing but the shape; each letter bought uncovers one more.
  *
- * A word is what the spaces separate, so "Pre-Map" gives away only its P. Punctuation stays
- * visible: it is not a letter to guess, and the shape of the name is the hint.
+ * A word is what the spaces separate, so "Pre-Map" spends both its letters on "Pr".
+ * Punctuation stays visible: it is not a letter to guess, and the shape of the name is
+ * itself the hint.
  */
-export function nameHint(name: string): string {
+export function nameHint(name: string, letters: number): string {
   return name
     .split(' ')
     .map((word) => {
-      let first = true;
+      let given = 0;
       return [...word]
         .map((ch) => {
           if (!/[A-Za-z0-9]/.test(ch)) return ch;
-          if (first) { first = false; return ch; }
+          if (given < letters) { given += 1; return ch; }
           return '_';
         })
         .join('');
@@ -116,7 +126,7 @@ export function shuffleBag<T>(items: readonly T[], random: () => number): Bag<T>
   };
 }
 
-function hintFor(kind: HintKind, room: Room): Hint {
+function hintFor(kind: HintKind, room: Room, nameLetters: number): Hint {
   switch (kind) {
     case 'area':
       return { kind, label: HINT_LABELS[kind], text: room.area };
@@ -143,7 +153,7 @@ function hintFor(kind: HintKind, room: Room): Hint {
         ...(room.diagram ? { imageUrl: `${CDN}@${SM_JSON_COMMIT}/${room.diagram}` } : {}),
       };
     case 'name':
-      return { kind, label: HINT_LABELS[kind], text: nameHint(room.name) };
+      return { kind, label: HINT_LABELS[kind], text: nameHint(room.name, nameLetters) };
   }
 }
 
@@ -190,6 +200,9 @@ export interface Session {
   hints(): Hint[];
   /** Every hint there is, priced, whether bought or not. */
   offers(): HintOffer[];
+  /** How many letters of each word of the name have been paid for, up to NAME_LETTERS. */
+  nameLetters(): number;
+  /** Buys one more of a hint. The name is sold a letter at a time; the rest, once each. */
   buyHint(kind: HintKind): void;
   /** Every room indistinguishable from the current one, including it. */
   group(): Room[];
@@ -212,7 +225,8 @@ export function createSession(options: SessionOptions): Session {
   let spent = 0;
   let solved = false;
   let gaveUp = false;
-  let bought = new Set<HintKind>();
+  /** How many times each hint has been bought. Only the name ever goes above one. */
+  let bought = new Map<HintKind, number>();
   let grade: Grade | null = null;
   let asked = 1;
   let totalSolved = 0;
@@ -226,10 +240,14 @@ export function createSession(options: SessionOptions): Session {
     return gaveUp || spent >= MAX_GUESSES ? 'lost' : 'guessing';
   };
 
+  const timesBought = (kind: HintKind): number => bought.get(kind) ?? 0;
+
   /** A room never got is worth nothing, however little was spent working on it. */
   const points = (): number => {
     if (state() === 'lost') return 0;
-    return STARTING_POINTS - [...bought].reduce((sum, kind) => sum + HINT_COSTS[kind], 0);
+    const spentOnHints = HINT_ORDER
+      .reduce((sum, kind) => sum + timesBought(kind) * HINT_COSTS[kind], 0);
+    return STARTING_POINTS - spentOnHints;
   };
 
   const record = (): PlayedRoom => ({ room, solved, guessesUsed: spent, points: points() });
@@ -247,7 +265,7 @@ export function createSession(options: SessionOptions): Session {
     spent = 0;
     solved = false;
     gaveUp = false;
-    bought = new Set();
+    bought = new Map();
     grade = null;
     asked += 1;
   };
@@ -255,8 +273,11 @@ export function createSession(options: SessionOptions): Session {
   /** What has been bought, in a settled order however it was bought — or all of it, once
    * the room is over and there is nothing left to give away. */
   const revealed = (): Hint[] => {
-    const shown = state() === 'guessing' ? HINT_ORDER.filter((k) => bought.has(k)) : HINT_ORDER;
-    return shown.map((kind) => hintFor(kind, room));
+    const playing = state() === 'guessing';
+    const shown = playing ? HINT_ORDER.filter((k) => timesBought(k) > 0) : HINT_ORDER;
+    // A room that is over has nothing left to sell, so the name shows every letter it would.
+    const letters = playing ? timesBought('name') : NAME_LETTERS;
+    return shown.map((kind) => hintFor(kind, room, letters));
   };
 
   const requirePlaying = () => {
@@ -278,21 +299,30 @@ export function createSession(options: SessionOptions): Session {
     group: () => equivalenceGroup(room, settings),
     lastGrade: () => grade,
 
-    offers: () => HINT_ORDER.map((kind) => ({
-      kind,
-      label: HINT_LABELS[kind],
-      cost: HINT_COSTS[kind],
-      bought: bought.has(kind),
-      affordable: !bought.has(kind) && HINT_COSTS[kind] <= points(),
-    })),
+    nameLetters: () => timesBought('name'),
+
+    offers: () => HINT_ORDER.map((kind) => {
+      const spent = timesBought(kind) >= HINT_LIMITS[kind];
+      return {
+        kind,
+        label: HINT_LABELS[kind],
+        cost: HINT_COSTS[kind],
+        bought: spent,
+        affordable: !spent && HINT_COSTS[kind] <= points(),
+      };
+    }),
 
     buyHint(kind) {
       requirePlaying();
-      if (bought.has(kind)) throw new Error(`The ${kind} hint has already been bought`);
+      if (timesBought(kind) >= HINT_LIMITS[kind]) {
+        throw new Error(`The ${kind} hint has already been bought`);
+      }
+      // Unreachable at the shipped prices, which total less than a room is worth. It is the
+      // invariant that matters: no hint may be had for points that are not there.
       if (HINT_COSTS[kind] > points()) {
         throw new Error(`Not enough points left for the ${kind} hint`);
       }
-      bought.add(kind);
+      bought.set(kind, timesBought(kind) + 1);
     },
 
     /**

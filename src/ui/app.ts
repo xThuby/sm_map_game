@@ -207,8 +207,12 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     if (kind === 'diagram' && viewedRoom().diagram === null) return '';
     const offer = session.offers().find((o) => o.kind === kind);
     if (!offer || offer.bought) return '';
+    // The name is sold a letter at a time, so its tag says which letter is being bought.
+    const what = kind === 'name'
+      ? `${session.nameLetters() === 0 ? 'a letter' : 'another letter'} for`
+      : 'for';
     return `<button data-action="buy" data-hint="${kind}"${offer.affordable ? '' : ' disabled'}
-      >reveal for ${offer.cost}</button>`;
+      >reveal ${what} ${offer.cost}</button>`;
   }
 
   /** The points on the room being looked at, which is the one in play unless looking back. */
@@ -234,7 +238,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     const existing = stage.querySelector('img[data-role=diagram]');
 
     const diagramPrice = priceTag('diagram');
-    buyDiagram.innerHTML = diagramPrice ? `The room in game: ${diagramPrice}` : '';
+    buyDiagram.innerHTML = diagramPrice ? `Room graphics: ${diagramPrice}` : '';
     toggleButton.hidden = !available;
     toggleButton.textContent = showDiagram ? 'Show the map' : 'Show the room';
 
@@ -357,7 +361,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   /**
    * One panel for everything known about the room. Facts a hint would give away read "?"
    * until that hint arrives; facts that were never hints are shown from the start, because
-   * they are already on the map. The name sits above as ??? until the last hint sketches it.
+   * they are already on the map. The name sits above it, masked, a letter at a time.
    *
    * The room's own picture is not listed: it stands in for the map, and naming it as a fact
    * as well would say nothing.
@@ -369,12 +373,12 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     const known = (kind: HintKind, value: string) =>
       (over || shown.has(kind) ? value : priceTag(kind));
 
-    roomName.textContent = over
-      ? room.name
-      : (shown.has('name') ? nameHint(room.name) : '???');
+    // Masked from the start rather than hidden: the shape of a name is free, and it is
+    // something to work with before any letter of it has been paid for.
+    roomName.textContent = over ? room.name : nameHint(room.name, session.nameLetters());
     // The name's price sits beside the name rather than in the list below it.
     nameLine.querySelector('button[data-action=buy]')?.remove();
-    if (!over && !shown.has('name')) nameLine.insertAdjacentHTML('beforeend', priceTag('name'));
+    nameLine.insertAdjacentHTML('beforeend', priceTag('name'));
 
     const enemies = room.enemies.length === 0
       ? 'none'
