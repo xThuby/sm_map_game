@@ -45,6 +45,11 @@ each hint costs, what a wrong answer costs, and which hints a wrong answer throw
 them there; `src/game/costs.test.ts` guards the two things the balance depends on, so a
 change that breaks one says so.
 
+There is a map layout page at `/map.html` — one zone of one generated Map Rando layout,
+drawn the way its map screen would, with controls for which map and which of the six zones.
+Hard mode will be built on these; the page is for judging them first. It is not linked from
+the game.
+
 There is a par review page at `/par.html` — how many guesses each room ought to take, with the
 reasoning, for checking those numbers look sensible. It is not linked from the game.
 

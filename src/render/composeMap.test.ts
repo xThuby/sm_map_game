@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { composeMapBitmap, mapBitmapSize, renderMap, fitMapTileSize } from './composeMap';
+import {
+  composeMapBitmap, mapBitmapSize, renderMap, fitMapTileSize, MAP_VIEWPORT,
+} from './composeMap';
 import { renderRoomBitmap, PALETTE_INDICES, BACKDROP } from './pixelRenderer';
 import { VIEWPORT, TOURNAMENT_SETTINGS } from './renderer';
 import { loadMaps, layoutFor } from '../map/layout';
@@ -147,10 +149,20 @@ describe('fitting a zone on the page', () => {
    * A zone is far wider than one room, so the single-room floor of 32 would push the biggest
    * of them five times past the page. Native size is the floor here instead.
    */
-  it('draws the biggest zone at native size rather than overflowing', () => {
+  it('drops to native size rather than overflowing a box too small for more', () => {
     const biggest = everyZone().reduce((a, b) => (a.width > b.width ? a : b));
     expect(biggest.width).toBeGreaterThan(50);
     expect(fitMapTileSize(biggest, VIEWPORT)).toBe(8);
+  });
+
+  /** The map page's own box is wide enough that no zone is stuck at native size. */
+  it('gets every zone off native size in the box the map page gives it', () => {
+    for (const zone of everyZone()) {
+      const tileSize = fitMapTileSize(zone, MAP_VIEWPORT);
+      expect(tileSize, `${zone.area}`).toBeGreaterThanOrEqual(16);
+      expect(zone.width * tileSize, `${zone.area}`).toBeLessThanOrEqual(MAP_VIEWPORT.width);
+      expect(zone.height * tileSize, `${zone.area}`).toBeLessThanOrEqual(MAP_VIEWPORT.height);
+    }
   });
 
   it('draws a small zone larger than a big one', () => {

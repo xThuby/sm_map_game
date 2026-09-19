@@ -93,3 +93,21 @@ describe('the par review page', () => {
     expect(readFileSync(resolve(repoRoot, 'README.md'), 'utf8')).toContain('par.html');
   });
 });
+
+describe('the map layout page', () => {
+  /** For looking at the generated layouts hard mode will be built on. Not the game. */
+  it('is built, but not linked from the game', () => {
+    expect(existsSync(resolve(dist, 'map.html'))).toBe(true);
+    const html = readFileSync(resolve(repoRoot, 'index.html'), 'utf8');
+    expect(html).not.toContain('map.html');
+  });
+
+  it('is written down somewhere findable', () => {
+    expect(readFileSync(resolve(repoRoot, 'README.md'), 'utf8')).toContain('map.html');
+  });
+
+  it('gives itself the same dark ground the game has', () => {
+    const html = readFileSync(resolve(repoRoot, 'map.html'), 'utf8');
+    expect(html).toMatch(/body\s*\{[^}]*background:\s*#000/);
+  });
+});

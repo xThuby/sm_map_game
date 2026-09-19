@@ -16,6 +16,16 @@ import type { RenderSettings } from '../types';
 export const MIN_MAP_TILE_SIZE = 8;
 
 /**
+ * The box a zone is drawn to fit, which is wider than the box one room gets.
+ *
+ * A source pixel has to cover a whole number of screen pixels or the art blurs, so the tile
+ * size climbs in steps of 8 and a zone realistically has two of them: 8 or 16. At the game's
+ * 760 the widest zones only clear the first, and half the page goes unused. This is wide
+ * enough that every zone reaches 16.
+ */
+export const MAP_VIEWPORT = { width: 1100, height: 760 };
+
+/**
  * The Toilet is a tube Samus falls through, and the only room Map Rando draws over another
  * — in the vanilla map as much as a generated one. It has to go down last or it vanishes
  * under whatever it crosses. It is also the only room built entirely of tube tiles, so
@@ -70,6 +80,11 @@ export function fitMapTileSize(
   viewport: { width: number; height: number },
 ): number {
   return fitTileSize(layout, viewport, MIN_MAP_TILE_SIZE);
+}
+
+/** The map's answer to `Renderer`, so a page can take a recorder in its place. */
+export interface MapRenderer {
+  render(canvas: HTMLCanvasElement, layout: Layout, settings: RenderSettings): void;
 }
 
 export function renderMap(

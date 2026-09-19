@@ -8,8 +8,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   base: '/sm_map_game/',
   build: {
-    // par.html is a second entry point: a review page for judging the par numbers.
-    rollupOptions: { input: { main: 'index.html', par: 'par.html' } },
+    // Two review pages beside the game: par.html for judging the par numbers, map.html for
+    // looking at the generated map layouts hard mode will be built on.
+    rollupOptions: { input: { main: 'index.html', par: 'par.html', map: 'map.html' } },
   },
   test: {
     // Deliberately broad: a narrower list once silently skipped tools/, and a test file that
