@@ -52,8 +52,11 @@ describe('levenshtein', () => {
 
 describe('buildNameIndex', () => {
   it('indexes every canonical name and every alias', () => {
-    expect(index.entries).toHaveLength(286);
-    expect(index.entries.filter((e) => e.isAlias)).toHaveLength(33);
+    const rooms = loadRooms();
+    const aliases = rooms.reduce((n, r) => n + r.aliases.length, 0);
+    expect(index.entries).toHaveLength(rooms.length + aliases);
+    expect(index.entries.filter((e) => e.isAlias)).toHaveLength(aliases);
+    expect(aliases).toBe(42);
   });
 
   it('indexes the hand-added names', () => {

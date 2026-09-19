@@ -332,7 +332,7 @@ export function buildAllRooms(
     const geo = geoById.get(t.roomId);
     if (!geo) throw new Error(`Room ${t.roomId} (${t.roomName}) is missing from room_geometry`);
     const extra = smJson[String(t.roomId)] ?? {};
-    return buildRoom(t, geo, deriveAliases(t.roomName, extra.name), {
+    return buildRoom(t, geo, [], {
       ...extra,
       neighbours: (neighbours[geo.room_id] ?? [])
         .map((id) => canonicalName.get(id))

@@ -1,0 +1,342 @@
+{
+  "_note": "Every room in the game, and every other name it answers to. Edit this by hand: add a nickname to a room, or take one away. The key is the name the game shows on the reveal; the list is everything else a player may type for it. Sorted by room name. Names and aliases must be unique across the whole file — the build refuses otherwise, because a name two rooms answer to could not be graded. This is the only source of aliases. Names that sm-json-data uses are already listed; the build warns if a refresh of that data brings a name this file does not have.",
+  "rooms": {
+    "Acid Snakes Tunnel": [
+      "Lava Farm Tunnel"
+    ],
+    "Acid Statue Room": [],
+    "Alpha Power Bomb Room": [],
+    "Amphitheatre": [],
+    "Aqueduct": [],
+    "Aqueduct Save Room": [],
+    "Assembly Line": [
+      "Robot Assembly Line"
+    ],
+    "Attic": [],
+    "Baby Kraid Room": [],
+    "Basement": [],
+    "Bat Cave": [],
+    "Bat Room": [
+      "Skree Boost Room"
+    ],
+    "Below Botwoon Energy Tank": [],
+    "Below Spazer": [],
+    "Beta Power Bomb Room": [],
+    "Big Boy Room": [],
+    "Big Pink": [],
+    "Big Pink Save Room": [],
+    "Billy Mays Room": [],
+    "Blue Brinstar Boulder Room": [],
+    "Blue Brinstar Elevator Room": [],
+    "Blue Brinstar Energy Tank Room": [],
+    "Blue Hopper Room": [
+      "Tourian Hopper Room"
+    ],
+    "Bomb Torizo Room": [],
+    "Botwoon Energy Tank Room": [],
+    "Botwoon Hallway": [],
+    "Botwoon Quicksand Room": [],
+    "Botwoon's Room": [
+      "Botwoon Room"
+    ],
+    "Bowling Alley": [],
+    "Bowling Alley Path": [
+      "Pancakes and Wavers Room"
+    ],
+    "Boyon Gate Hall": [],
+    "Brinstar Map Room": [],
+    "Brinstar Pre-Map Room": [],
+    "Brinstar Reserve Tank Room": [],
+    "Bubble Mountain": [],
+    "Bubble Mountain Save Room": [],
+    "Bug Sand Hole": [
+      "Yoink Room"
+    ],
+    "Business Center": [],
+    "Butterfly Room": [],
+    "Caterpillar Room": [],
+    "Caterpillar Save Room": [],
+    "Cathedral": [],
+    "Cathedral Entrance": [],
+    "Climb": [],
+    "Colosseum": [],
+    "Construction Zone": [],
+    "Crab Hole": [],
+    "Crab Maze": [],
+    "Crab Shaft": [],
+    "Crab Tunnel": [
+      "Crab Gate Room"
+    ],
+    "Crateria Kihunter Room": [],
+    "Crateria Map Room": [],
+    "Crateria Power Bomb Room": [],
+    "Crateria Save Room": [],
+    "Crateria Super Room": [
+      "Climb Supers Room"
+    ],
+    "Crateria Tube": [],
+    "Crocomire Escape": [],
+    "Crocomire Save Room": [],
+    "Crocomire Speedway": [],
+    "Crocomire's Room": [
+      "Crocomire Room"
+    ],
+    "Crumble Shaft": [],
+    "Dachora Energy Refill": [],
+    "Dachora Room": [],
+    "Double Chamber": [],
+    "Draygon Save Room": [],
+    "Draygon's Room": [
+      "Draygon Room"
+    ],
+    "Dust Torizo Room": [],
+    "Early Supers Room": [],
+    "East Aqueduct Quicksand Room": [],
+    "East Cactus Alley Room": [
+      "East Cactus Alley"
+    ],
+    "East Ocean": [],
+    "East Sand Hall": [],
+    "East Sand Hole": [
+      "East Sand Pit"
+    ],
+    "Electric Death Room": [],
+    "Etecoon Energy Tank Room": [],
+    "Etecoon Save Room": [],
+    "Etecoon Super Room": [],
+    "Fast Pillars Setup Room": [],
+    "Fast Ripper Room": [],
+    "Final Missile Bombway": [],
+    "First Missile Room": [],
+    "Fish Tank": [],
+    "Flyway": [],
+    "Forgotten Highway Elbow": [],
+    "Forgotten Highway Elevator": [],
+    "Forgotten Highway Kago Room": [],
+    "Forgotten Highway Save Room": [],
+    "Frog Savestation": [],
+    "Frog Speedway": [],
+    "Gauntlet Energy Tank Room": [],
+    "Gauntlet Entrance": [],
+    "Glass Tunnel": [
+      "Maridia Tube"
+    ],
+    "Glass Tunnel Save Room": [
+      "Maridia Tube Save Room"
+    ],
+    "Golden Torizo Energy Recharge": [],
+    "Golden Torizo's Room": [
+      "Golden Torizo Room"
+    ],
+    "Grapple Beam Room": [],
+    "Grapple Tutorial Room 1": [],
+    "Grapple Tutorial Room 2": [],
+    "Grapple Tutorial Room 3": [],
+    "Gravity Suit Room": [],
+    "Green Brinstar Beetom Room": [],
+    "Green Brinstar Elevator Room": [],
+    "Green Brinstar Fireflea Room": [],
+    "Green Brinstar Main Shaft": [],
+    "Green Brinstar Main Shaft Save Room": [
+      "Green Brinstar Save Room"
+    ],
+    "Green Brinstar Missile Refill": [],
+    "Green Bubbles Missile Room": [
+      "Green Bubbles Tunnel"
+    ],
+    "Green Hill Zone": [],
+    "Green Pirates Shaft": [],
+    "Halfie Climb Room": [],
+    "Hellway": [],
+    "Hi Jump Boots Room": [],
+    "Hi Jump Energy Tank Room": [],
+    "Hopper Energy Tank Room": [
+      "Wave Gate Energy Tank Room"
+    ],
+    "Ice Beam Acid Room": [
+      "Ice Beam Trippers Room"
+    ],
+    "Ice Beam Gate Room": [],
+    "Ice Beam Room": [],
+    "Ice Beam Snake Room": [],
+    "Ice Beam Tutorial Room": [],
+    "Kassiuz Room": [
+      "Plasma Climb"
+    ],
+    "Kraid Eye Door Room": [],
+    "Kraid Recharge Station": [],
+    "Kraid Room": [],
+    "Kraid Save Room": [],
+    "Kronic Boost Room": [],
+    "Landing Site": [],
+    "Lava Dive Room": [],
+    "Lower Mushrooms": [],
+    "Lower Norfair Elevator": [],
+    "Lower Norfair Elevator Save Room": [],
+    "Lower Norfair Escape Power Bomb Room": [
+      "The Jail"
+    ],
+    "Lower Norfair Farming Room": [],
+    "Lower Norfair Fireflea Room": [],
+    "Lower Norfair Spring Ball Maze Room": [
+      "Lower Norfair Spring Ball Maze"
+    ],
+    "Lower Tourian Save Room": [],
+    "Magdollite Tunnel": [],
+    "Main Hall": [],
+    "Main Street": [],
+    "Mama Turtle Room": [],
+    "Maridia Elevator Room": [],
+    "Maridia Health Refill Room": [],
+    "Maridia Map Room": [],
+    "Maridia Missile Refill Room": [],
+    "Metal Pirates Room": [],
+    "Metroid Room 1": [],
+    "Metroid Room 2": [],
+    "Metroid Room 3": [],
+    "Metroid Room 4": [],
+    "Mickey Mouse Room": [],
+    "Morph Ball Room": [],
+    "Mother Brain Room": [],
+    "Mt. Everest": [
+      "Mount Everest"
+    ],
+    "Noob Bridge": [],
+    "Norfair Map Room": [],
+    "Norfair Reserve Tank Room": [],
+    "Northwest Maridia Bug Room": [
+      "Maridia Swiss Cheese Room"
+    ],
+    "Nutella Refill": [],
+    "Oasis": [],
+    "Pants Room": [
+      "East Pants Room"
+    ],
+    "Parlor and Alcatraz": [],
+    "Phantoon's Room": [
+      "Phantoon Room"
+    ],
+    "Pillar Room": [],
+    "Pink Brinstar Hopper Room": [
+      "Pink Brinstar Wave Gate Room"
+    ],
+    "Pink Brinstar Power Bomb Room": [
+      "Mission Impossible Room"
+    ],
+    "Pit Room": [],
+    "Plasma Beach Quicksand Room": [],
+    "Plasma Room": [],
+    "Plasma Spark Room": [],
+    "Plasma Tutorial Room": [],
+    "Plowerhouse Room": [],
+    "Post Crocomire Farming Room": [],
+    "Post Crocomire Jump Room": [
+      "Indiana Jones Room"
+    ],
+    "Post Crocomire Missile Room": [
+      "Cosine Room"
+    ],
+    "Post Crocomire Power Bomb Room": [],
+    "Post Crocomire Save Room": [],
+    "Post Crocomire Shaft": [],
+    "Pre-Map Flyway": [],
+    "Pseudo Plasma Spark Room": [
+      "The Beach"
+    ],
+    "Purple Farming Room": [],
+    "Purple Shaft": [],
+    "Red Brinstar Elevator Room": [],
+    "Red Brinstar Fireflea Room": [],
+    "Red Fish Room": [],
+    "Red Kihunter Shaft": [],
+    "Red Kihunter Shaft Save Room": [],
+    "Red Pirate Shaft": [],
+    "Red Tower": [],
+    "Ridley Tank Room": [],
+    "Ridley's Room": [
+      "Ridley Room"
+    ],
+    "Rinka Shaft": [],
+    "Rising Tide": [],
+    "Screw Attack Room": [],
+    "Seaweed Room": [],
+    "Shaktool Room": [],
+    "Single Chamber": [],
+    "Sloaters Refill": [],
+    "Space Jump Room": [],
+    "Spazer Room": [],
+    "Speed Booster Hall": [],
+    "Speed Booster Room": [],
+    "Spiky Acid Snakes Tunnel": [
+      "Lava Grapple Tunnel"
+    ],
+    "Spiky Death Room": [],
+    "Spiky Platforms Tunnel": [],
+    "Sponge Bath": [],
+    "Spore Spawn Farming Room": [],
+    "Spore Spawn Kihunter Room": [],
+    "Spore Spawn Room": [],
+    "Spore Spawn Super Room": [],
+    "Spring Ball Room": [],
+    "Statues Hallway": [
+      "G4 Hallway"
+    ],
+    "Statues Room": [
+      "G4"
+    ],
+    "Terminator Room": [],
+    "The Final Missile": [
+      "230 Missile Room"
+    ],
+    "The Moat": [],
+    "The Precious Room": [],
+    "The Worst Room In The Game": [],
+    "Thread The Needle Room": [],
+    "Three Musketeers' Room": [],
+    "Toilet Bowl": [],
+    "Tourian Escape Room 1": [],
+    "Tourian Escape Room 2": [],
+    "Tourian Escape Room 3": [],
+    "Tourian Escape Room 4": [],
+    "Tourian Eye Door Room": [],
+    "Tourian First Room": [],
+    "Tourian Map Room": [
+      "Upper Tourian Save Room"
+    ],
+    "Tourian Recharge Room": [],
+    "Upper Norfair Farming Room": [],
+    "Varia Suit Room": [],
+    "Volcano Room": [],
+    "Warehouse Energy Tank Room": [],
+    "Warehouse Entrance": [],
+    "Warehouse Kihunter Room": [],
+    "Warehouse Zeela Room": [],
+    "Wasteland": [],
+    "Watering Hole": [],
+    "Waterway Energy Tank Room": [],
+    "Wave Beam Room": [],
+    "West Aqueduct Quicksand Room": [],
+    "West Cactus Alley Room": [
+      "West Cactus Alley"
+    ],
+    "West Glass Tube Tunnel": [
+      "West Maridia Tube Tunnel"
+    ],
+    "West Ocean": [],
+    "West Sand Hall": [],
+    "West Sand Hall Tunnel": [
+      "Lonely Crab Room"
+    ],
+    "West Sand Hole": [
+      "West Sand Pit"
+    ],
+    "Wrecked Ship East Super Room": [],
+    "Wrecked Ship Energy Tank Room": [],
+    "Wrecked Ship Entrance": [],
+    "Wrecked Ship Main Shaft": [],
+    "Wrecked Ship Map Room": [],
+    "Wrecked Ship Save Room": [],
+    "Wrecked Ship West Super Room": [],
+    "X-Ray Scope Room": []
+  }
+}

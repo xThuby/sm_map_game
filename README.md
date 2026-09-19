@@ -33,6 +33,11 @@ which show each room as it was and what the round stood at then.
 A round is six rooms; after each one you get a summary of how it went — points won, guesses
 taken, rooms going worst — against your running stats, which are kept in the browser.
 
+Every room name the game accepts lives in [data/room-names.json](data/room-names.json) — all
+253 rooms, each with the other names it answers to. Edit it by hand and re-run
+`npm run build:data`. It is the only source of aliases: the build refuses a name two rooms
+share, and refuses to lose a name sm-json-data uses that the file does not list.
+
 Every price lives in [src/game/costs.ts](src/game/costs.ts) — what a room is worth, what
 each hint costs, what a wrong answer costs, and which hints a wrong answer throws in. Tweak
 them there; `src/game/costs.test.ts` guards the two things the balance depends on, so a

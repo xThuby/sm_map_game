@@ -17,9 +17,9 @@ const rawGeo = readRaw<RawGeoRoom[]>('room_geometry.json');
 const smJson = readRaw<Record<string, { name?: string }>>('sm_json_rooms.json');
 const vanillaMap = readRaw<VanillaMap>('vanilla_map.json');
 const curated = JSON.parse(
-  readFileSync(resolve(repoRoot, 'data/aliases.json'), 'utf8'),
-) as { aliases: Record<string, string[]> };
-const rooms: Room[] = buildAllRooms(rawTiles, rawGeo, smJson, vanillaMap, curated.aliases);
+  readFileSync(resolve(repoRoot, 'data/room-names.json'), 'utf8'),
+) as { rooms: Record<string, string[]> };
+const rooms: Room[] = buildAllRooms(rawTiles, rawGeo, smJson, vanillaMap, curated.rooms);
 
 const byName = new Map(rooms.map((r) => [r.name, r]));
 const tally = <T>(xs: T[]): Record<string, number> => {
@@ -166,12 +166,30 @@ describe('corpus: item markers', () => {
 });
 
 describe('corpus: aliases', () => {
-  it('gives 33 rooms at least one other name', () => {
-    expect(rooms.filter((r) => r.aliases.length > 0)).toHaveLength(33);
+  it('gives 42 rooms at least one other name', () => {
+    expect(rooms.filter((r) => r.aliases.length > 0)).toHaveLength(42);
   });
 
-  it('has an sm-json-data name for every one of the 253 rooms', () => {
-    for (const r of rooms) expect(smJson[String(r.id)]?.name).toBeTypeOf('string');
+  /** data/room-names.json is the only source of aliases, so it has to list every room. */
+  it('names every room in the file that drives it', () => {
+    expect(Object.keys(curated.rooms)).toHaveLength(rooms.length);
+    for (const r of rooms) expect(curated.rooms, r.name).toHaveProperty([r.name]);
+  });
+
+  /**
+   * A name upstream uses has to be in the file rather than arriving with a data refresh:
+   * the file is hand-edited, and a name that appears without being written there would be
+   * one nobody chose.
+   */
+  it('lists every name sm-json-data uses for a room', () => {
+    for (const r of rooms) {
+      const upstream = smJson[String(r.id)]?.name;
+      expect(upstream, `room ${r.id}`).toBeTypeOf('string');
+      if ((upstream as string).toLowerCase() === r.name.toLowerCase()) continue;
+      expect(r.aliases.map((a) => a.toLowerCase()), r.name).toContain(
+        (upstream as string).toLowerCase(),
+      );
+    }
   });
 
   it('knows the rooms players are most likely to name differently', () => {
@@ -201,10 +219,25 @@ describe('corpus: aliases', () => {
     expect(byName.get('Statues Hallway')?.aliases).toContain('G4 Hallway');
   });
 
-  it('offers 286 distinct names across all rooms', () => {
+  it('answers to a name a player is likely to type for a room the map calls something else', () => {
+    const alias = (name: string) => byName.get(name)?.aliases ?? [];
+    expect(alias('Mt. Everest')).toContain('Mount Everest');
+    expect(alias('Kassiuz Room')).toContain('Plasma Climb');
+    expect(alias('Pants Room')).toContain('East Pants Room');
+  });
+
+  /** "Crocomire's Room" and "Crocomire Room" are different keys once punctuation goes. */
+  it('answers to a boss room without the possessive', () => {
+    const alias = (name: string) => byName.get(name)?.aliases ?? [];
+    expect(alias("Crocomire's Room")).toContain('Crocomire Room');
+    expect(alias("Ridley's Room")).toContain('Ridley Room');
+    expect(alias("Golden Torizo's Room")).toContain('Golden Torizo Room');
+  });
+
+  it('offers 295 distinct names across all rooms', () => {
     const all = rooms.flatMap((r) => [r.name, ...r.aliases]);
-    expect(new Set(all).size).toBe(286);
-    expect(all).toHaveLength(286);
+    expect(new Set(all).size).toBe(295);
+    expect(all).toHaveLength(295);
   });
 });
 

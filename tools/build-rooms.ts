@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { buildAllRooms } from './transform.ts';
+import { buildAllRooms, deriveAliases } from './transform.ts';
 import type { RawGeoRoom, RawTileRoom, SmJsonRoom, VanillaMap } from './transform.ts';
 import type { Room } from '../src/types.ts';
 
@@ -43,10 +43,25 @@ function main(): void {
   ) as VanillaMap;
 
   const curated = JSON.parse(
-    readFileSync(resolve(repoRoot, 'data/aliases.json'), 'utf8'),
-  ) as { aliases: Record<string, string[]> };
+    readFileSync(resolve(repoRoot, 'data/room-names.json'), 'utf8'),
+  ) as { rooms: Record<string, string[]> };
 
-  const rooms: Room[] = buildAllRooms(tiles.rooms, geo, smJson, vanillaMap, curated.aliases);
+  const rooms: Room[] = buildAllRooms(tiles.rooms, geo, smJson, vanillaMap, curated.rooms);
+
+  // data/room-names.json is the only source of aliases, so every room has to be in it, and
+  // a name upstream uses has to be listed rather than silently arriving with a data refresh.
+  for (const room of rooms) {
+    assert(room.name in curated.rooms, `data/room-names.json is missing ${room.name}`);
+    const upstream = smJson[String(room.id)]?.name;
+    const fromUpstream = deriveAliases(room.name, upstream);
+    for (const name of fromUpstream) {
+      assert(
+        room.aliases.some((a) => a.toLowerCase() === name.toLowerCase()),
+        `sm-json-data calls room ${room.id} ${JSON.stringify(name)}, `
+          + 'which data/room-names.json does not list',
+      );
+    }
+  }
 
   assert(rooms.length === EXPECTED_ROOMS, `expected ${EXPECTED_ROOMS} rooms, got ${rooms.length}`);
   const tileCount = rooms.reduce((n, r) => n + r.tiles.length, 0);
