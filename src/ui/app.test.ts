@@ -941,6 +941,12 @@ describe('the fact panel', () => {
     expect(facts().join(' ')).not.toContain('Maridia');
   });
 
+  it('puts the count after an enemy whose name ends in a number', () => {
+    only('Fast Ripper Room');
+    buy('enemies');
+    expect(facts()).toContain('Enemies: Ripper 2 x6');
+  });
+
   it('shows the facts that were never a hint from the start', () => {
     only('Watering Hole');
     expect(facts().join(' ')).toContain('2 x 3 tiles');
@@ -1186,9 +1192,13 @@ describe('buying hints', () => {
     expect(q('[data-role=points]').textContent).toContain(`${left} points`);
   });
 
-  /** The shared purse: spend it all on letters and a single wrong answer is too much. */
+  /**
+   * The shared purse: spend it all on letters and a single wrong answer is too much. A long
+   * name is where it bites — letters keep selling until the money goes, rather than stopping
+   * at half the name.
+   */
   it('leaves no room to be wrong once everything is spent', () => {
-    const app = only('Volcano Room');
+    const app = only('Green Brinstar Main Shaft Save Room');
     for (const kind of HINT_ORDER) buy(kind);
     buyEveryLetter();
     wrongGuess(app);

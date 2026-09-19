@@ -48,7 +48,7 @@ export const HINT_COSTS: Record<HintKind, number> = {
   enemies: 5,
   neighbour: 15,
   diagram: 20,
-  name: 12,
+  name: 8,
 };
 
 /**

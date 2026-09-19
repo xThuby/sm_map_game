@@ -97,19 +97,23 @@ export function shuffleBag<T>(items: readonly T[], random: () => number): Bag<T>
   };
 }
 
+/**
+  * The enemies in a room, counted.
+  *
+  * The count goes after the name because some names end in a number of their own: "Ripper 2"
+  * is its own enemy rather than the second Ripper, and "6 Ripper 2" read as a typo.
+  */
+export function describeEnemies(enemies: Room['enemies']): string {
+  if (enemies.length === 0) return 'This room has no enemies.';
+  return enemies.map((e) => (e.quantity > 1 ? `${e.name} x${e.quantity}` : e.name)).join(', ');
+}
+
 function hintFor(kind: HintKind, room: Room, nameShowing: ReadonlySet<number>): Hint {
   switch (kind) {
     case 'area':
       return { kind, label: HINT_LABELS[kind], text: room.area };
-    case 'enemies': {
-      if (room.enemies.length === 0) {
-        return { kind, label: HINT_LABELS[kind], text: 'This room has no enemies.' };
-      }
-      const list = room.enemies
-        .map((e) => (e.quantity > 1 ? `${e.quantity} ${e.name}` : e.name))
-        .join(', ');
-      return { kind, label: HINT_LABELS[kind], text: list };
-    }
+    case 'enemies':
+      return { kind, label: HINT_LABELS[kind], text: describeEnemies(room.enemies) };
     case 'neighbour':
       return {
         kind,

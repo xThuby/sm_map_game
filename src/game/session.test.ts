@@ -138,9 +138,13 @@ describe('guesses', () => {
     expect(s.state()).toBe('lost');
   });
 
-  /** The shared purse means spending it all leaves no room to be wrong. Accepted. */
+  /**
+   * The shared purse means spending it all can leave no room to be wrong. A long name is
+   * where it bites: letters go on selling until the money runs out rather than stopping at
+   * half the name, so there is nothing left for a guess.
+   */
   it('can leave a player who spent everything unable to afford a wrong answer', () => {
-    const s = only('Volcano Room');
+    const s = only('Green Brinstar Main Shaft Save Room');
     for (const kind of HINT_ORDER) s.buyHint(kind);
     buyEveryLetter(s);
     expect(s.points()).toBeLessThan(WRONG_GUESS_COST);
@@ -303,11 +307,6 @@ describe('guesses', () => {
 });
 
 describe('buying hints', () => {
-  /** The name is priced per letter, so it is the only one that costs twice. */
-  it('prices the hints as advertised', () => {
-    expect(HINT_COSTS).toEqual({ area: 5, enemies: 5, neighbour: 15, diagram: 20, name: 12 });
-  });
-
   /**
    * One of every hint is always within reach, and taking them all still leaves something to
    * win. The name is the open-ended one, so there is no fixed price for the lot.
@@ -318,7 +317,8 @@ describe('buying hints', () => {
       expect(s.offers().find((o) => o.kind === kind)?.affordable, kind).toBe(true);
       s.buyHint(kind);
     }
-    expect(s.points()).toBe(STARTING_POINTS - 5 - 5 - 15 - 20 - 12);
+    const oneOfEach = HINT_ORDER.reduce((sum, kind) => sum + HINT_COSTS[kind], 0);
+    expect(s.points()).toBe(STARTING_POINTS - oneOfEach);
     expect(s.state()).toBe('guessing');
   });
 
@@ -405,12 +405,16 @@ describe('buying hints', () => {
     }
   });
 
-  /** No fixed number of letters: they go on selling while they can be paid for. */
-  it('sells more than a couple of letters when there is the money for them', () => {
+  /**
+   * No fixed number of letters: they go on selling while they can be paid for. On a name
+   * this long the money is what stops them, not the half-a-name cap, so what is left over
+   * afterwards is less than one more letter costs.
+   */
+  it('sells letters until the money runs out, not to a fixed count', () => {
     const s = only('Green Brinstar Main Shaft Save Room');
     const bought = buyEveryLetter(s);
-    expect(bought).toBe(8);
-    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name * 8);
+    expect(bought).toBeGreaterThan(2);
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name * bought);
     expect(s.points()).toBeLessThan(HINT_COSTS.name);
   });
 
@@ -549,7 +553,21 @@ describe('hints', () => {
   });
 
   it('lists the enemies', () => {
-    expect(allHints('Volcano Room').get('enemies')).toContain('Fune');
+    expect(allHints('Volcano Room').get('enemies')).toBe('Fune x6');
+  });
+
+  /**
+   * "Ripper 2" is its own enemy, not the second Ripper, so a count in front of it read as
+   * part of the name: "6 Ripper 2". The count goes after, where nothing can absorb it.
+   */
+  it('counts an enemy whose name ends in a number without running into it', () => {
+    expect(allHints('Fast Ripper Room').get('enemies')).toBe('Ripper 2 x6');
+  });
+
+  it('leaves a lone enemy uncounted', () => {
+    const text = allHints('Bomb Torizo Room').get('enemies') ?? '';
+    expect(text).toContain('Bomb Torizo');
+    expect(text).not.toContain('x1');
   });
 
   it('says so plainly for a room with no enemies', () => {

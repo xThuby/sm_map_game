@@ -1,4 +1,4 @@
-import { createSession, ROUND_LENGTH } from '../game/session';
+import { createSession, describeEnemies, ROUND_LENGTH } from '../game/session';
 import type { HintKind, Session } from '../game/session';
 import { buildNameIndex, autocomplete } from '../game/matching';
 import { loadRooms, guessableRooms } from '../rooms';
@@ -423,9 +423,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     nameLine.querySelector('button[data-action=buy]')?.remove();
     nameLine.insertAdjacentHTML('beforeend', priceTag('name'));
 
-    const enemies = room.enemies.length === 0
-      ? 'none'
-      : room.enemies.map((e) => (e.quantity > 1 ? `${e.quantity} ${e.name}` : e.name)).join(', ');
+    const enemies = room.enemies.length === 0 ? 'none' : describeEnemies(room.enemies);
 
     const twins = over ? session.group().filter((r) => r.id !== room.id) : [];
     const facts = [
