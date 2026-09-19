@@ -149,8 +149,8 @@ export function deriveItemCount(tiles: Tile[]): number {
   return tiles.reduce((n, t) => n + (ITEM_WEIGHT[t.interior] ?? 0), 0);
 }
 
-export function deriveHasHiddenItem(tiles: Tile[]): boolean {
-  return tiles.some((t) => t.interior === 'hiddenItem');
+export function deriveHiddenItemCount(tiles: Tile[]): number {
+  return tiles.filter((t) => t.interior === 'hiddenItem').length;
 }
 
 export function deriveUtilities(tiles: Tile[]): Utility[] {
@@ -305,7 +305,7 @@ export function buildRoom(
       (d): Door => ({ direction: d.direction, x: d.x, y: d.y, subtype: d.subtype }),
     ),
     itemCount: deriveItemCount(tiles),
-    hasHiddenItem: deriveHasHiddenItem(tiles),
+    hiddenItemCount: deriveHiddenItemCount(tiles),
     utilities: deriveUtilities(tiles),
     hasElevator: deriveHasElevator(tiles),
     oneWay: deriveOneWay(geo),

@@ -84,7 +84,6 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
         <p>
           <span data-role="buy-diagram"></span>
           <button data-action="toggle-view" hidden>Show the room</button>
-          <span data-role="viewing"></span>
         </p>
         <div data-role="stage" style="display:inline-block;line-height:0"
           ><canvas data-role="map"></canvas></div>
@@ -96,7 +95,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
           <span data-role="par"></span>
         </p>
         <p>
-          <label>Which room is this?
+          <label><span data-role="prompt">Which room is this?</span>
             <input name="answer" type="text" autocomplete="off" size="32">
           </label>
         </p>
@@ -108,6 +107,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
         </p>
         <ul data-role="suggestions" style="list-style:none;padding:0;margin:4px 0"></ul>
         <p data-role="verdict"></p>
+        <p data-role="tried"></p>
         <div data-role="facts">
           <p data-role="name-line" style="font-weight:bold;font-size:1.2em"
             ><span data-role="room-name"></span> </p>
@@ -141,7 +141,8 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   const toggleButton = el<HTMLButtonElement>('button[data-action=toggle-view]');
   const buyDiagram = el<HTMLSpanElement>('[data-role=buy-diagram]');
   const pointsLabel = el<HTMLSpanElement>('[data-role=points]');
-  const viewing = el<HTMLSpanElement>('[data-role=viewing]');
+  const prompt = el<HTMLSpanElement>('[data-role=prompt]');
+  const tried = el<HTMLParagraphElement>('[data-role=tried]');
   const par = el<HTMLSpanElement>('[data-role=par]');
   const totalLabel = el<HTMLSpanElement>('[data-role=total]');
   const summary = el<HTMLElement>('[data-role=summary]');
@@ -288,8 +289,12 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     const back = lookingBack > 0;
     const over = session.state() !== 'guessing';
 
-    viewing.textContent = back
-      ? `Looking back at ${viewedRoom().name} — right arrow to return`
+    prompt.textContent = back ? 'This room was' : 'Which room is this?';
+    // What has been tried already, so it is not tried twice. The room in play only: a room
+    // gone by is filed under what it was worth, not what was guessed at it.
+    const guessed = session.wrongGuesses();
+    tried.textContent = !back && guessed.length > 0
+      ? `Already tried: ${guessed.map((r) => r.name).join(', ')}`
       : '';
     pointsLabel.textContent = plural(viewedPoints(), 'point');
     // The total is what the round is worth so far, which only means something once the room
@@ -387,6 +392,17 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
    * The room's own picture is not listed: it stands in for the map, and naming it as a fact
    * as well would say nothing.
    */
+  /**
+   * "Items: 1 (one hidden)" could be read as two items with one of them hidden. A room
+   * whose items are all hidden says so outright; one with some of each counts them.
+   */
+  function itemsFact(room: Room): string {
+    if (room.itemCount === 0) return '';
+    if (room.hiddenItemCount === 0) return `Items: ${room.itemCount}`;
+    if (room.hiddenItemCount === room.itemCount) return `Items: ${room.itemCount} hidden`;
+    return `Items: ${room.itemCount} (${room.hiddenItemCount} hidden)`;
+  }
+
   function drawFacts(): void {
     const room = viewedRoom();
     const over = lookingBack > 0 || session.state() !== 'guessing';
@@ -411,9 +427,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       `Enemies: ${known('enemies', enemies)}`,
       `Connects to: ${known('neighbour', room.neighbours.join(', ') || 'nothing')}`,
       `Size: ${room.width} x ${room.height} tiles`,
-      room.itemCount > 0
-        ? `Items: ${room.itemCount}${room.hasHiddenItem ? ' (one hidden)' : ''}`
-        : '',
+      itemsFact(room),
       room.heated ? 'Heated' : '',
       room.liquid !== 'none' ? room.liquid.charAt(0).toUpperCase() + room.liquid.slice(1) : '',
       room.utilities.length ? room.utilities.join(', ') : '',
@@ -589,8 +603,10 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
    * keep moving the caret while you are typing an answer.
    */
   function look(step: number): void {
-    const limit = session.played().length;
-    const next = Math.min(Math.max(lookingBack + step, 0), limit);
+    // Only within this round. The round is the unit of play, and the one before it is done
+    // with — its summary has already been read.
+    const limit = session.roundResults().length - (session.state() === 'guessing' ? 0 : 1);
+    const next = Math.min(Math.max(lookingBack + step, 0), Math.max(limit, 0));
     if (next === lookingBack) return;
     lookingBack = next;
     showDiagram = false;

@@ -147,6 +147,29 @@ describe('guesses', () => {
     expect(() => s.buyHint('area')).toThrow();
   });
 
+  it('remembers the rooms already tried and found wrong', () => {
+    const s = only('Volcano Room');
+    expect(s.wrongGuesses()).toEqual([]);
+    s.guess('Landing Site');
+    s.guess('The Moat');
+    expect(s.wrongGuesses().map((r) => r.name)).toEqual(['Landing Site', 'The Moat']);
+  });
+
+  it('does not count the right answer, or one that names no room, among them', () => {
+    const s = only('Volcano Room');
+    s.guess('not a room at all');
+    s.guess('Volcano Room');
+    expect(s.wrongGuesses()).toEqual([]);
+  });
+
+  it('forgets what was tried on the room before', () => {
+    const s = only('Volcano Room');
+    s.guess('Landing Site');
+    s.giveUp();
+    s.next();
+    expect(s.wrongGuesses()).toEqual([]);
+  });
+
   it('costs nothing for an answer that names no room', () => {
     const s = only('Volcano Room');
     const grade = s.guess('nonsense that is not a room');

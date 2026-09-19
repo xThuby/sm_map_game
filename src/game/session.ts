@@ -201,6 +201,8 @@ export interface Session {
   state(): RoomState;
   /** How many answers have been given on this room, right or wrong. */
   guessesUsed(): number;
+  /** The rooms already named and found wrong on this one, oldest first. */
+  wrongGuesses(): Room[];
   /** What the room in play is still worth: a hundred less whatever hints were bought. */
   points(): number;
   /** The points banked this round, the room in play included once it is over. */
@@ -242,6 +244,8 @@ export function createSession(options: SessionOptions): Session {
   let nameShowing = new Set<number>();
   /** Points gone: hints bought plus ten for every wrong answer. */
   let spentPoints = 0;
+  /** The rooms named and found wrong, so they can be shown rather than tried again. */
+  let wrong: Room[] = [];
   let grade: Grade | null = null;
   let asked = 1;
   let totalSolved = 0;
@@ -301,6 +305,7 @@ export function createSession(options: SessionOptions): Session {
     revealed = new Set();
     nameShowing = new Set();
     spentPoints = 0;
+    wrong = [];
     grade = null;
     asked += 1;
   };
@@ -331,6 +336,7 @@ export function createSession(options: SessionOptions): Session {
     current: () => room,
     state,
     guessesUsed: () => used,
+    wrongGuesses: () => [...wrong],
     points,
     roundPoints: () => roundResults().reduce((sum, r) => sum + r.points, 0),
     hints: onShow,
@@ -392,6 +398,7 @@ export function createSession(options: SessionOptions): Session {
       }
 
       // Being wrong costs ten, and throws in the next hint there is to give.
+      wrong.push(named as Room);
       spentPoints += WRONG_GUESS_COST;
       const consolation = AUTO_HINTS.find((kind) => timesBought(kind) === 0);
       if (consolation) show(consolation);

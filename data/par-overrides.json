@@ -8,6 +8,10 @@
     "West Aqueduct Quicksand Room": {
       "par": 4,
       "why": "Separated from East Aqueduct Quicksand Room only by enemy count, 7 against 6 of the same enemy. Nobody knows that by heart."
+    },
+    "Purple Farming Room": {
+      "par": 2,
+      "why": "Despite being technically unique from other 1-tile 1-entrance rooms, it's so similar that it's at least par 2 instead of par 1"
     }
   }
 }

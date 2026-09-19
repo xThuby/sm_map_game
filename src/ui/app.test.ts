@@ -519,7 +519,7 @@ describe('looking back at earlier rooms', () => {
     const app = mount();
     const first = app.session.current().name;
     arrow('ArrowLeft');
-    expect(q('[data-role=viewing]').textContent).toBe('');
+    expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(false);
     expect(app.session.current().name).toBe(first);
   });
 
@@ -528,7 +528,7 @@ describe('looking back at earlier rooms', () => {
     const first = app.session.current().name;
     finish();
     arrow('ArrowLeft');
-    expect(q('[data-role=viewing]').textContent).toContain(first);
+    expect(q('[data-role=room-name]').textContent).toBe(first);
   });
 
   it('comes forward again to the room in play', () => {
@@ -536,7 +536,7 @@ describe('looking back at earlier rooms', () => {
     finish();
     arrow('ArrowLeft');
     arrow('ArrowRight');
-    expect(q('[data-role=viewing]').textContent).toBe('');
+    expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(false);
   });
 
   it('stops at the oldest room rather than wrapping', () => {
@@ -544,7 +544,38 @@ describe('looking back at earlier rooms', () => {
     const first = app.session.current().name;
     finish();
     for (let i = 0; i < 5; i += 1) arrow('ArrowLeft');
-    expect(q('[data-role=viewing]').textContent).toContain(first);
+    expect(q('[data-role=room-name]').textContent).toBe(first);
+  });
+
+  /** Rounds are the unit of play; the one before it is done with. */
+  it('will not walk back into the round before this one', () => {
+    const app = mount();
+    for (let i = 0; i < ROUND_LENGTH - 1; i += 1) finish();
+    giveUp();
+    click('button[data-action=new-round]');
+    const opener = app.session.current().name;
+    for (let i = 0; i < 4; i += 1) arrow('ArrowLeft');
+    expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(false);
+    expect(q('[data-role=room-name]').textContent).not.toBe(opener);
+    expect(q('[data-role=score]').textContent).toMatch(/Room 1 of 6/);
+  });
+
+  /** A line naming what you are looking at, which the reveal below already says. */
+  it('does not announce what it is looking back at', () => {
+    mount();
+    finish();
+    arrow('ArrowLeft');
+    expect(root.textContent).not.toMatch(/looking back/i);
+  });
+
+  it('asks what the room is, and says what it was', () => {
+    mount();
+    expect(q('[data-role=prompt]').textContent).toMatch(/which room is this/i);
+    finish();
+    arrow('ArrowLeft');
+    expect(q('[data-role=prompt]').textContent).toBe('This room was');
+    arrow('ArrowRight');
+    expect(q('[data-role=prompt]').textContent).toMatch(/which room is this/i);
   });
 
   it('counts the room you are looking at, not the one in play', () => {
@@ -594,7 +625,7 @@ describe('looking back at earlier rooms', () => {
     const e = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
     input.dispatchEvent(e);
     expect(e.defaultPrevented).toBe(false);
-    expect(q('[data-role=viewing]').textContent).toBe('');
+    expect(q<HTMLInputElement>('input[name=answer]').hidden).toBe(false);
   });
 });
 
@@ -778,6 +809,23 @@ describe('the fact panel', () => {
     expect(facts().join(' ')).toContain('2 x 3 tiles');
     expect(facts().join(' ')).toContain('Items: 2');
     expect(facts().join(' ')).toContain('Water');
+  });
+
+  /** "1 (one hidden)" read as though it might be two items, one of them hidden. */
+  it('says a lone hidden item is the one item there is', () => {
+    only('Warehouse Kihunter Room');
+    expect(facts().join(' ')).toContain('Items: 1 hidden');
+  });
+
+  it('counts the hidden ones against the total when only some are', () => {
+    only('Mama Turtle Room');
+    expect(facts().join(' ')).toContain('Items: 2 (1 hidden)');
+  });
+
+  it('says nothing about hiding when nothing is hidden', () => {
+    only('Watering Hole');
+    expect(facts().join(' ')).toContain('Items: 2');
+    expect(facts().join(' ')).not.toMatch(/hidden/i);
   });
 
   it('says nothing about doors', () => {
@@ -1024,6 +1072,49 @@ describe('buying hints', () => {
     expect(q('[data-role=points]').textContent).toContain(String(STARTING_POINTS));
     for (const kind of Object.keys(HINT_COSTS)) expect(buyButton(kind), kind).toBeTruthy();
     void app;
+  });
+});
+
+describe('the rooms already tried', () => {
+  const tried = () => q('[data-role=tried]').textContent ?? '';
+
+  it('says nothing before anything has been tried', () => {
+    only('Volcano Room');
+    expect(tried()).toBe('');
+  });
+
+  it('lists each wrong answer, oldest first', () => {
+    only('Volcano Room');
+    type('Landing Site');
+    click('button[data-action=guess]');
+    type('The Moat');
+    click('button[data-action=guess]');
+    expect(tried()).toContain('Landing Site');
+    expect(tried()).toContain('The Moat');
+    expect(tried().indexOf('Landing Site')).toBeLessThan(tried().indexOf('The Moat'));
+  });
+
+  it('leaves out what named no room at all', () => {
+    only('Volcano Room');
+    type('not a room at all');
+    click('button[data-action=guess]');
+    expect(tried()).toBe('');
+  });
+
+  it('is still there once the room is over', () => {
+    only('Volcano Room');
+    type('Landing Site');
+    click('button[data-action=guess]');
+    giveUp();
+    expect(tried()).toContain('Landing Site');
+  });
+
+  it('is cleared for the next room', () => {
+    const app = mount();
+    wrongGuess(app);
+    giveUp();
+    click('button[data-action=next]');
+    expect(tried()).toBe('');
   });
 });
 

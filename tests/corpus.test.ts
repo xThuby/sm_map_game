@@ -138,6 +138,7 @@ describe('corpus: derived room facts', () => {
   // Independent cross-check: sm-json-data separately lists exactly 100 item nodes.
   it('counts 100 items across the game', () => {
     expect(rooms.reduce((n, r) => n + r.itemCount, 0)).toBe(100);
+    expect(rooms.reduce((n, r) => n + r.hiddenItemCount, 0)).toBe(11);
   });
 
   it('has 41 rooms whose doors are not all mutually reachable', () => {

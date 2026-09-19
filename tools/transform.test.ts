@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  areaFromIndex, boundingBox, normalizeTile, deriveItemCount, deriveHasHiddenItem,
+  areaFromIndex, boundingBox, normalizeTile, deriveItemCount, deriveHiddenItemCount,
   deriveUtilities, deriveHasElevator, deriveOneWay, deriveAliases, deriveNeighbours, buildRoom,
   buildAllRooms, tidyEnemyName, mergeEnemies,
 } from './transform';
@@ -99,10 +99,18 @@ describe('deriveItemCount', () => {
   });
 });
 
-describe('deriveHasHiddenItem', () => {
-  it('is true only when a hiddenItem tile is present', () => {
-    expect(deriveHasHiddenItem([tile({ interior: 'hiddenItem' })])).toBe(true);
-    expect(deriveHasHiddenItem([tile({ interior: 'item' })])).toBe(false);
+describe('deriveHiddenItemCount', () => {
+  it('counts only the hiddenItem tiles', () => {
+    expect(deriveHiddenItemCount([tile({ interior: 'hiddenItem' })])).toBe(1);
+    expect(deriveHiddenItemCount([tile({ interior: 'item' })])).toBe(0);
+    expect(deriveHiddenItemCount([tile({ interior: 'doubleItem' })])).toBe(0);
+  });
+
+  /** A doubleItem counts two towards the items and none towards the hidden ones. */
+  it('counts a room with both kinds separately', () => {
+    const tiles = [tile({ interior: 'hiddenItem' }), tile({ interior: 'doubleItem' })];
+    expect(deriveItemCount(tiles)).toBe(3);
+    expect(deriveHiddenItemCount(tiles)).toBe(1);
   });
 });
 

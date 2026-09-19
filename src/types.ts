@@ -78,7 +78,8 @@ export interface Room {
   liquidLevel: number | null;
   doors: Door[];
   itemCount: number;
-  hasHiddenItem: boolean;
+  /** How many of those items are hidden — all of them, in seven rooms. */
+  hiddenItemCount: number;
   utilities: Utility[];
   hasElevator: boolean;
   oneWay: OneWay | null;
