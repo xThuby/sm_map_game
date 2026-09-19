@@ -11,5 +11,6 @@ export default defineConfig({
     // Deliberately broad: a narrower list once silently skipped tools/, and a test file that
     // is never collected is worse than one that fails.
     include: ['**/*.test.ts'],
+    environment: 'node',
   },
 });

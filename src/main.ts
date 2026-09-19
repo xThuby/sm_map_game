@@ -1,4 +1,8 @@
-const statusEl = document.querySelector<HTMLParagraphElement>('#status');
-if (statusEl) {
-  statusEl.textContent = 'Round 0: walking skeleton. Deploy pipeline is live.';
+import { mountApp } from './ui/app';
+import { loadRooms } from './rooms';
+import { TOURNAMENT_SETTINGS } from './render/renderer';
+
+const root = document.querySelector<HTMLDivElement>('#app');
+if (root) {
+  mountApp(root, { rooms: loadRooms(), settings: { ...TOURNAMENT_SETTINGS, tileSize: 32 } });
 }
