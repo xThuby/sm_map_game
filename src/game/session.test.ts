@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createSession, shuffleBag, MAX_GUESSES, HINT_ORDER, HINT_COSTS, STARTING_POINTS,
-  NAME_LETTERS, nameHint, ROUND_LENGTH,
+  NAME_LETTERS, WRONG_GUESS_COST, nameHint, ROUND_LENGTH,
 } from './session';
 import { loadRooms } from '../rooms';
 import { TOURNAMENT_SETTINGS } from '../render/renderer';
@@ -11,9 +11,20 @@ const seeded = (seed: number) => {
   let s = seed;
   return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
 };
+/** How many letters of the real name a mask is showing. */
+const uncovered = (mask: string, name: string): number =>
+  [...mask].filter((ch, i) => ch !== '_' && /[A-Za-z0-9]/.test(name[i] as string)).length;
+
 const only = (name: string, seed = 1) => createSession({
   rooms: rooms.filter((r) => r.name === name),
   settings: TOURNAMENT_SETTINGS, random: seeded(seed),
+});
+/**
+ * A one-room session draws nothing from the shuffle bag, so whatever this hands back goes
+ * straight to the letter picker — which is the only place a session rolls a die.
+ */
+const rolling = (name: string, random: () => number) => createSession({
+  rooms: rooms.filter((r) => r.name === name), settings: TOURNAMENT_SETTINGS, random,
 });
 
 describe('shuffleBag', () => {
@@ -29,9 +40,9 @@ describe('shuffleBag', () => {
 });
 
 describe('guesses', () => {
-  it('starts with every guess unspent, no hints, and full points', () => {
+  it('starts with nothing guessed, no hints, and full points', () => {
     const s = only('Volcano Room');
-    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+    expect(s.guessesUsed()).toBe(0);
     expect(s.hints()).toEqual([]);
     expect(s.points()).toBe(STARTING_POINTS);
     expect(s.state()).toBe('guessing');
@@ -41,34 +52,91 @@ describe('guesses', () => {
     const s = only('Volcano Room');
     expect(s.guess('Volcano Room').correct).toBe(true);
     expect(s.state()).toBe('solved');
-    expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
+    expect(s.guessesUsed()).toBe(1);
+    expect(s.points()).toBe(STARTING_POINTS);
   });
 
-  /** Guesses and hints are separate currencies now: a wrong answer gives nothing away. */
-  it('spends a guess when wrong, and reveals nothing', () => {
+  /** Guesses are paid for out of the same purse as hints. */
+  it('charges ten points for a wrong answer', () => {
     const s = only('Volcano Room');
     s.guess('Landing Site');
-    expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
-    expect(s.hints()).toEqual([]);
-    expect(s.points()).toBe(STARTING_POINTS);
+    expect(s.guessesUsed()).toBe(1);
+    expect(s.points()).toBe(STARTING_POINTS - WRONG_GUESS_COST);
     expect(s.state()).toBe('guessing');
   });
 
-  it('is lost once every guess is spent', () => {
+  /**
+   * Ten points buys the area hint, which is five if you ask for it. The premium is the
+   * point: the hint is a consolation for the guess, not a cheaper way to get one.
+   */
+  it('throws in the area hint with the first wrong answer', () => {
     const s = only('Volcano Room');
-    for (let i = 0; i < MAX_GUESSES; i += 1) s.guess('Landing Site');
-    expect(s.guessesLeft()).toBe(0);
+    s.guess('Landing Site');
+    expect(s.hints().map((h) => h.kind)).toEqual(['area']);
+    expect(s.points()).toBe(STARTING_POINTS - WRONG_GUESS_COST);
+  });
+
+  it('throws in the enemies hint with the second', () => {
+    const s = only('Volcano Room');
+    s.guess('Landing Site');
+    s.guess('Landing Site');
+    expect(s.hints().map((h) => h.kind)).toEqual(['area', 'enemies']);
+    expect(s.points()).toBe(STARTING_POINTS - WRONG_GUESS_COST * 2);
+  });
+
+  it('takes the ten and gives nothing after that', () => {
+    const s = only('Volcano Room');
+    for (let i = 0; i < 3; i += 1) s.guess('Landing Site');
+    expect(s.hints().map((h) => h.kind)).toEqual(['area', 'enemies']);
+    expect(s.points()).toBe(STARTING_POINTS - WRONG_GUESS_COST * 3);
+  });
+
+  /** No point handing over something already paid for; the next one along is given instead. */
+  it('gives the next hint that was not already bought', () => {
+    const s = only('Volcano Room');
+    s.buyHint('area');
+    s.guess('Landing Site');
+    expect(s.hints().map((h) => h.kind)).toEqual(['area', 'enemies']);
+    expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.area - WRONG_GUESS_COST);
+  });
+
+  it('is lost once the points run out', () => {
+    const s = only('Volcano Room');
+    for (let i = 0; i < MAX_GUESSES; i += 1) {
+      if (s.state() === 'guessing') s.guess('Landing Site');
+    }
+    expect(s.points()).toBe(0);
     expect(s.state()).toBe('lost');
   });
 
-  /** Giving up is the way out of a room you cannot name, and it costs the rest of the round
-   * nothing but the points. It does not pretend the guesses were spent. */
-  it('ends the room when given up on, without spending the guesses', () => {
+  /** Ten a guess out of a hundred: ten guesses is all a room can take, hints aside. */
+  it('allows no more guesses than the points cover', () => {
+    const s = only('Volcano Room');
+    expect(MAX_GUESSES).toBe(STARTING_POINTS / WRONG_GUESS_COST);
+    for (let i = 0; i < MAX_GUESSES - 1; i += 1) s.guess('Landing Site');
+    expect(s.state()).toBe('guessing');
+    expect(s.points()).toBe(WRONG_GUESS_COST);
+    s.guess('Landing Site');
+    expect(s.state()).toBe('lost');
+  });
+
+  /** The shared purse means buying everything leaves no room to be wrong. Accepted. */
+  it('can leave a player who bought everything unable to afford a wrong answer', () => {
+    const s = only('Volcano Room');
+    for (const kind of HINT_ORDER) s.buyHint(kind);
+    for (let i = 1; i < NAME_LETTERS; i += 1) s.buyHint('name');
+    expect(s.points()).toBe(5);
+    s.guess('Landing Site');
+    expect(s.state()).toBe('lost');
+  });
+
+  /** Giving up is the way out of a room you cannot name. It spends no guess doing it. */
+  it('ends the room when given up on, without spending a guess', () => {
     const s = only('Volcano Room');
     s.guess('Landing Site');
     s.giveUp();
     expect(s.state()).toBe('lost');
-    expect(s.guessesLeft()).toBe(MAX_GUESSES - 1);
+    expect(s.guessesUsed()).toBe(1);
   });
 
   it('refuses further guesses once the room is over', () => {
@@ -79,27 +147,40 @@ describe('guesses', () => {
     expect(() => s.buyHint('area')).toThrow();
   });
 
-  it('does not spend a guess on an answer that names no room', () => {
+  it('costs nothing for an answer that names no room', () => {
     const s = only('Volcano Room');
     const grade = s.guess('nonsense that is not a room');
     expect(grade.correct).toBe(false);
     expect(grade.recognised).toBe(false);
-    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+    expect(s.guessesUsed()).toBe(0);
+    expect(s.points()).toBe(STARTING_POINTS);
     expect(s.hints()).toEqual([]);
   });
 
-  it('suggests a near miss without spending a guess', () => {
+  it('suggests a near miss without charging for it', () => {
     const s = only('Volcano Room');
     const grade = s.guess('Volcanoe Room');
     expect(grade.suggestion?.name).toBe('Volcano Room');
-    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+    expect(s.points()).toBe(STARTING_POINTS);
   });
 
-  it('accepts a room that looks identical to the one shown', () => {
+  /**
+   * Look-alikes used to count, because nothing on screen separated them. The hints separate
+   * them now and any of them can be bought, so naming the wrong twin is simply wrong.
+   */
+  it('refuses a room that merely looks identical to the one shown', () => {
     const s = only('Wave Beam Room');
     const grade = s.guess('Ice Beam Room');
-    expect(grade.correct).toBe(true);
-    expect(grade.group.map((r) => r.name).sort()).toContain('Ice Beam Room');
+    expect(grade.correct).toBe(false);
+    expect(s.state()).toBe('guessing');
+    expect(s.points()).toBe(STARTING_POINTS - WRONG_GUESS_COST);
+  });
+
+  /** Still worth naming them on the reveal: that a twin exists is worth knowing. */
+  it('still names the rooms it cannot be told apart from', () => {
+    const s = only('Wave Beam Room');
+    expect(s.group().map((r) => r.name)).toContain('Ice Beam Room');
+    expect(s.guess('Ice Beam Room').group.map((r) => r.name)).toContain('Ice Beam Room');
   });
 
   it('accepts an alias', () => {
@@ -151,16 +232,55 @@ describe('buying hints', () => {
     expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name);
   });
 
-  it('sells the name a letter at a time', () => {
+  /** One letter, somewhere — not the first letter of every word, which gave away far more. */
+  it('sells one letter of the name at a time, wherever it falls', () => {
     const s = only('Volcano Room');
     expect(s.nameLetters()).toBe(0);
+    expect(s.nameMask()).toBe('_______ ____');
+
     s.buyHint('name');
     expect(s.nameLetters()).toBe(1);
-    expect(s.hints().find((h) => h.kind === 'name')?.text).toBe('V______ R___');
+    expect(uncovered(s.nameMask(), 'Volcano Room')).toBe(1);
+
     s.buyHint('name');
     expect(s.nameLetters()).toBe(2);
-    expect(s.hints().find((h) => h.kind === 'name')?.text).toBe('Vo_____ Ro__');
+    expect(uncovered(s.nameMask(), 'Volcano Room')).toBe(2);
     expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name * 2);
+  });
+
+  /** Any letter of the name, not a fixed one: the low roll takes the first, the high the last. */
+  it('picks the letter from anywhere in the name', () => {
+    const low = rolling('Volcano Room', () => 0);
+    low.buyHint('name');
+    expect(low.nameMask()).toBe('V______ ____');
+
+    const high = rolling('Volcano Room', () => 0.999);
+    high.buyHint('name');
+    expect(high.nameMask()).toBe('_______ ___m');
+  });
+
+  it('never uncovers the same letter twice', () => {
+    for (const roll of [0, 0.25, 0.5, 0.75, 0.999]) {
+      const s = rolling('Volcano Room', () => roll);
+      s.buyHint('name');
+      const first = s.nameMask();
+      s.buyHint('name');
+      expect(uncovered(s.nameMask(), 'Volcano Room'), `roll ${roll}`).toBe(2);
+      expect(s.nameMask(), `roll ${roll}`).not.toBe(first);
+    }
+  });
+
+  it('only ever uncovers letters, never the spaces and punctuation already showing', () => {
+    for (const roll of [0, 0.25, 0.5, 0.75, 0.999]) {
+      const s = rolling("Crocomire's Room", () => roll);
+      s.buyHint('name');
+      s.buyHint('name');
+      const mask = s.nameMask();
+      expect(mask, `roll ${roll}`).toHaveLength("Crocomire's Room".length);
+      expect(mask[9], `roll ${roll}`).toBe("'");
+      expect(mask[11], `roll ${roll}`).toBe(' ');
+      expect(uncovered(mask, "Crocomire's Room"), `roll ${roll}`).toBe(2);
+    }
   });
 
   it('stops selling letters at the limit', () => {
@@ -168,6 +288,12 @@ describe('buying hints', () => {
     for (let i = 0; i < NAME_LETTERS; i += 1) s.buyHint('name');
     expect(() => s.buyHint('name')).toThrow(/already/i);
     expect(s.points()).toBe(STARTING_POINTS - HINT_COSTS.name * NAME_LETTERS);
+  });
+
+  it('shows the whole name once the room is over', () => {
+    const s = only('Volcano Room');
+    s.giveUp();
+    expect(s.nameMask()).toBe('Volcano Room');
   });
 
   it('counts the name as bought only once every letter is paid for', () => {
@@ -214,6 +340,7 @@ describe('buying hints', () => {
     s.guess('Volcano Room');
     s.next();
     expect(s.nameLetters()).toBe(0);
+    expect(s.nameMask()).toBe('_______ ____');
   });
 
   it('is worth nothing once the room is lost', () => {
@@ -266,9 +393,9 @@ describe('hints', () => {
     expect(allHints('Volcano Room').get('diagram')).toContain('VolcanoRoom_116.png');
   });
 
-  /** The most expensive, and the most generous: the shape of the name itself. */
-  it('sketches the name, every letter it sells, once the room is over', () => {
-    expect(allHints('Volcano Room').get('name')).toBe('Vo_____ Ro__');
+  /** The most expensive, and the most generous: the name itself, once it is over. */
+  it('gives up the whole name once the room is over', () => {
+    expect(allHints('Volcano Room').get('name')).toBe('Volcano Room');
   });
 
   it('gives a diagram url that is absolute and pinned', () => {
@@ -310,7 +437,7 @@ describe('scoring and progress', () => {
     s.buyHint('area');
     s.guess(s.current().name);
     s.next();
-    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+    expect(s.guessesUsed()).toBe(0);
     expect(s.hints()).toEqual([]);
     expect(s.points()).toBe(STARTING_POINTS);
     expect(s.state()).toBe('guessing');
@@ -324,54 +451,36 @@ describe('scoring and progress', () => {
 
 describe('nameHint', () => {
   /** Nothing given away at all: the shape of the name, and not one letter of it. */
-  it('masks every letter when no letter has been bought', () => {
-    expect(nameHint('Landing Site', 0)).toBe('_______ ____');
-    expect(nameHint('Metroid Room 1', 0)).toBe('_______ ____ _');
+  it('masks every letter when nothing has been bought', () => {
+    expect(nameHint('Landing Site', new Set())).toBe('_______ ____');
+    expect(nameHint('Metroid Room 1', new Set())).toBe('_______ ____ _');
   });
 
-  it('shows the first letter of each word and hides the rest', () => {
-    expect(nameHint('Landing Site', 1)).toBe('L______ S___');
-    expect(nameHint('The Moat', 1)).toBe('T__ M___');
+  it('uncovers exactly the characters it is given', () => {
+    expect(nameHint('Landing Site', new Set([0]))).toBe('L______ ____');
+    expect(nameHint('Landing Site', new Set([4, 9]))).toBe('____i__ _i__');
   });
 
-  it('shows two letters of each word for the second letter bought', () => {
-    expect(nameHint('Landing Site', 2)).toBe('La_____ Si__');
-    expect(nameHint('The Moat', 2)).toBe('Th_ Mo__');
+  /** Spaces and punctuation are the shape of the name, and are never a letter to buy. */
+  it('leaves the spaces and punctuation showing throughout', () => {
+    expect(nameHint("Crocomire's Room", new Set())).toBe("_________'_ ____");
+    expect(nameHint('Pre-Map Flyway', new Set())).toBe('___-___ ______');
   });
 
-  it('keeps the punctuation, which is part of the shape', () => {
-    expect(nameHint("Crocomire's Room", 0)).toBe("_________'_ ____");
-    expect(nameHint("Crocomire's Room", 1)).toBe("C________'_ R___");
-    expect(nameHint("Crocomire's Room", 2)).toBe("Cr_______'_ Ro__");
-  });
-
-  /** A word is what the spaces separate, so a hyphen does not start a new one. */
-  it('counts letters across a hyphen, which starts no new word', () => {
-    expect(nameHint('Pre-Map Flyway', 1)).toBe('P__-___ F_____');
-    expect(nameHint('Pre-Map Flyway', 2)).toBe('Pr_-___ Fl____');
-  });
-
-  it('leaves a word shorter than the letters bought as itself', () => {
-    expect(nameHint('Metroid Room 1', 1)).toBe('M______ R___ 1');
-    expect(nameHint('Metroid Room 1', 2)).toBe('Me_____ Ro__ 1');
-  });
-
-  it('never leaks a letter beyond the ones bought', () => {
+  it('keeps the name its own length whatever is showing', () => {
     for (const room of loadRooms()) {
-      for (let letters = 0; letters <= NAME_LETTERS; letters += 1) {
-        const masked = nameHint(room.name, letters);
-        expect(masked, room.name).toHaveLength(room.name.length);
-        // What is shown must be exactly the first `letters` letters of each word.
-        for (const [w, word] of room.name.split(' ').entries()) {
-          const shown = [...(masked.split(' ')[w] as string)];
-          let given = 0;
-          for (const [i, ch] of shown.entries()) {
-            const real = word[i] as string;
-            if (!/[A-Za-z0-9]/.test(real)) { expect(ch).toBe(real); continue; }
-            given += 1;
-            expect(ch, `${room.name} at ${i}`).toBe(given <= letters ? real : '_');
-          }
-        }
+      expect(nameHint(room.name, new Set()), room.name).toHaveLength(room.name.length);
+      expect(nameHint(room.name, new Set([0, 1])), room.name).toHaveLength(room.name.length);
+    }
+  });
+
+  it('never leaks a letter that was not asked for', () => {
+    for (const room of loadRooms()) {
+      const masked = nameHint(room.name, new Set([2]));
+      for (const [i, ch] of [...masked].entries()) {
+        const real = room.name[i] as string;
+        if (!/[A-Za-z0-9]/.test(real)) { expect(ch).toBe(real); continue; }
+        expect(ch, `${room.name} at ${i}`).toBe(i === 2 ? real : '_');
       }
     }
   });
@@ -430,7 +539,7 @@ describe('rounds', () => {
     expect(s.roundNumber()).toBe(2);
     expect(s.roundResults()).toEqual([]);
     expect(s.state()).toBe('guessing');
-    expect(s.guessesLeft()).toBe(MAX_GUESSES);
+    expect(s.guessesUsed()).toBe(0);
     expect(s.roundPoints()).toBe(0);
   });
 

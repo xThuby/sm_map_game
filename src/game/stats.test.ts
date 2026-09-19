@@ -234,6 +234,32 @@ describe('storage', () => {
     expect(loaded.played).toBe(1);
   });
 
+  /**
+   * The histogram is as wide as the points allow guesses, and that width has changed. A
+   * save from a narrower one is worth keeping: it is padded, not thrown away.
+   */
+  it('widens a histogram saved when a room allowed fewer guesses', () => {
+    const store = fakeStorage();
+    const narrow = { ...solve(emptyStats(), 'The Moat', 2), byGuess: [0, 1, 0, 0, 0, 0] };
+    store.setItem(STORAGE_KEY, JSON.stringify(narrow));
+    const loaded = loadStats(store);
+    expect(loaded.byGuess).toHaveLength(MAX_GUESSES);
+    expect(loaded.byGuess[1]).toBe(1);
+    expect(loaded.played).toBe(1);
+  });
+
+  it('folds a histogram saved when a room allowed more guesses into its last bar', () => {
+    const store = fakeStorage();
+    const wide = {
+      ...solve(emptyStats(), 'The Moat', 2),
+      byGuess: [...Array(MAX_GUESSES).fill(0), 3, 4],
+    };
+    store.setItem(STORAGE_KEY, JSON.stringify(wide));
+    const loaded = loadStats(store);
+    expect(loaded.byGuess).toHaveLength(MAX_GUESSES);
+    expect(loaded.byGuess[MAX_GUESSES - 1]).toBe(7);
+  });
+
   it('starts fresh when the stored shape is wrong', () => {
     const store = fakeStorage();
     store.setItem(STORAGE_KEY, JSON.stringify({ played: 'lots' }));

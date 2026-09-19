@@ -137,12 +137,25 @@ export function strugglingRooms(stats: Stats, limit: number): StrugglingRoom[] {
 function isStats(value: unknown): value is Partial<Stats> & Stats {
   const s = value as Stats | null;
   return !!s && typeof s.played === 'number' && typeof s.lost === 'number'
-    && Array.isArray(s.byGuess) && s.byGuess.length === MAX_GUESSES
+    && Array.isArray(s.byGuess) && s.byGuess.every((n) => typeof n === 'number')
     && typeof s.rooms === 'object' && s.rooms !== null
     && ['points', 'pointedRooms', 'bestRound'].every((k) => {
       const v = (s as unknown as Record<string, unknown>)[k];
       return v === undefined || typeof v === 'number';
     });
+}
+
+/**
+ * A saved histogram to the width a room allows today. The width follows the points, so a
+ * save from a different one is padded or folded into its last bar rather than discarded.
+ */
+function widen(byGuess: number[]): number[] {
+  const bars = Array(MAX_GUESSES).fill(0) as number[];
+  for (const [i, count] of byGuess.entries()) {
+    const at = Math.min(i, MAX_GUESSES - 1);
+    bars[at] = (bars[at] ?? 0) + count;
+  }
+  return bars;
 }
 
 /**
@@ -154,7 +167,8 @@ export function loadStats(storage: Storage | null): Stats {
     const raw = storage?.getItem(STORAGE_KEY);
     if (!raw) return emptyStats();
     const parsed: unknown = JSON.parse(raw);
-    return isStats(parsed) ? { ...emptyStats(), ...parsed } : emptyStats();
+    if (!isStats(parsed)) return emptyStats();
+    return { ...emptyStats(), ...parsed, byGuess: widen(parsed.byGuess ?? []) };
   } catch {
     return emptyStats();
   }

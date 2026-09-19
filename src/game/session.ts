@@ -3,14 +3,20 @@ import type { NameIndex } from './matching';
 import { equivalenceGroup, loadRooms } from '../rooms';
 import type { RenderSettings, Room } from '../types';
 
-/** How many wrong answers a room allows before it is lost. */
-export const MAX_GUESSES = 6;
-
 /** How many rooms make a round, after which the player is shown how they did. */
 export const ROUND_LENGTH = 6;
 
 /** What a room is worth if it is named without buying a thing. */
 export const STARTING_POINTS = 100;
+
+/**
+ * What a wrong answer costs. There is no guess allowance any more — guesses come out of the
+ * same purse as hints, so being wrong is priced rather than rationed.
+ */
+export const WRONG_GUESS_COST = 10;
+
+/** The most guesses a room can take: any more and the points are gone. */
+export const MAX_GUESSES = STARTING_POINTS / WRONG_GUESS_COST;
 
 export type HintKind = 'area' | 'enemies' | 'neighbour' | 'diagram' | 'name';
 
@@ -36,10 +42,14 @@ export const HINT_COSTS: Record<HintKind, number> = {
   name: 25,
 };
 
-/** How many times each hint can be bought. Only the name is sold more than once. */
-const HINT_LIMITS: Record<HintKind, number> = {
-  area: 1, enemies: 1, neighbour: 1, diagram: 1, name: NAME_LETTERS,
-};
+/**
+ * What a wrong answer throws in, in order — the first wrong answer gives the first of these
+ * that is not already showing, the second the next, and after that the ten buys nothing.
+ *
+ * Area costs 5 to ask for and 10 to be given, which is the right way round: the hint is a
+ * consolation for the guess, not a cheaper route to the hint.
+ */
+export const AUTO_HINTS: HintKind[] = ['area', 'enemies'];
 
 const HINT_LABELS: Record<HintKind, string> = {
   area: 'Original map area',
@@ -50,27 +60,24 @@ const HINT_LABELS: Record<HintKind, string> = {
 };
 
 /**
- * The name with all but the first `letters` letters of each word struck out, as in hangman.
- * At zero it gives away nothing but the shape; each letter bought uncovers one more.
+ * The name with every letter struck out but the ones at `revealed`, as in hangman.
  *
- * A word is what the spaces separate, so "Pre-Map" spends both its letters on "Pr".
- * Punctuation stays visible: it is not a letter to guess, and the shape of the name is
- * itself the hint.
+ * Spaces and punctuation always show: they are not letters to guess, and the shape of the
+ * name is itself free — it is what the room's own map tiles cannot tell you and its name
+ * length can.
  */
-export function nameHint(name: string, letters: number): string {
-  return name
-    .split(' ')
-    .map((word) => {
-      let given = 0;
-      return [...word]
-        .map((ch) => {
-          if (!/[A-Za-z0-9]/.test(ch)) return ch;
-          if (given < letters) { given += 1; return ch; }
-          return '_';
-        })
-        .join('');
+export function nameHint(name: string, revealed: ReadonlySet<number>): string {
+  return [...name]
+    .map((ch, i) => {
+      if (!/[A-Za-z0-9]/.test(ch)) return ch;
+      return revealed.has(i) ? ch : '_';
     })
-    .join(' ');
+    .join('');
+}
+
+/** Where the letters are in a name — the only places a bought letter can land. */
+function letterSpots(name: string): number[] {
+  return [...name].flatMap((ch, i) => (/[A-Za-z0-9]/.test(ch) ? [i] : []));
 }
 
 const CDN = 'https://cdn.jsdelivr.net/gh/vg-json-data/sm-json-data';
@@ -96,6 +103,7 @@ export interface HintOffer {
 }
 
 export interface Grade {
+  /** True only for the room actually on screen: a look-alike is a wrong answer. */
   correct: boolean;
   /** False when the input named no room at all, which does not cost a guess. */
   recognised: boolean;
@@ -126,7 +134,7 @@ export function shuffleBag<T>(items: readonly T[], random: () => number): Bag<T>
   };
 }
 
-function hintFor(kind: HintKind, room: Room, nameLetters: number): Hint {
+function hintFor(kind: HintKind, room: Room, nameShowing: ReadonlySet<number>): Hint {
   switch (kind) {
     case 'area':
       return { kind, label: HINT_LABELS[kind], text: room.area };
@@ -153,7 +161,7 @@ function hintFor(kind: HintKind, room: Room, nameLetters: number): Hint {
         ...(room.diagram ? { imageUrl: `${CDN}@${SM_JSON_COMMIT}/${room.diagram}` } : {}),
       };
     case 'name':
-      return { kind, label: HINT_LABELS[kind], text: nameHint(room.name, nameLetters) };
+      return { kind, label: HINT_LABELS[kind], text: nameHint(room.name, nameShowing) };
   }
 }
 
@@ -191,7 +199,8 @@ export interface Session {
   /** Begins the next round. Only valid once this one is over. */
   startRound(): void;
   state(): RoomState;
-  guessesLeft(): number;
+  /** How many answers have been given on this room, right or wrong. */
+  guessesUsed(): number;
   /** What the room in play is still worth: a hundred less whatever hints were bought. */
   points(): number;
   /** The points banked this round, the room in play included once it is over. */
@@ -200,8 +209,10 @@ export interface Session {
   hints(): Hint[];
   /** Every hint there is, priced, whether bought or not. */
   offers(): HintOffer[];
-  /** How many letters of each word of the name have been paid for, up to NAME_LETTERS. */
+  /** How many letters of the name have been paid for, up to NAME_LETTERS. */
   nameLetters(): number;
+  /** The name with only the bought letters showing — the whole name once the room is over. */
+  nameMask(): string;
   /** Buys one more of a hint. The name is sold a letter at a time; the rest, once each. */
   buyHint(kind: HintKind): void;
   /** Every room indistinguishable from the current one, including it. */
@@ -222,11 +233,15 @@ export function createSession(options: SessionOptions): Session {
   const bag = shuffleBag(rooms, random);
 
   let room = bag.take();
-  let spent = 0;
+  let used = 0;
   let solved = false;
   let gaveUp = false;
-  /** How many times each hint has been bought. Only the name ever goes above one. */
-  let bought = new Map<HintKind, number>();
+  /** Hints showing, whether paid for or thrown in with a wrong answer. */
+  let revealed = new Set<HintKind>();
+  /** Which characters of the name are showing. Its size is how many letters were bought. */
+  let nameShowing = new Set<number>();
+  /** Points gone: hints bought plus ten for every wrong answer. */
+  let spentPoints = 0;
   let grade: Grade | null = null;
   let asked = 1;
   let totalSolved = 0;
@@ -235,22 +250,40 @@ export function createSession(options: SessionOptions): Session {
   let roundStart = 0;
   let round = 1;
 
+  /** Out of points is out of the room: the purse is the only thing rationing a guess. */
+  const broke = (): boolean => spentPoints >= STARTING_POINTS;
+
   const state = (): RoomState => {
     if (solved) return 'solved';
-    return gaveUp || spent >= MAX_GUESSES ? 'lost' : 'guessing';
+    return gaveUp || broke() ? 'lost' : 'guessing';
   };
 
-  const timesBought = (kind: HintKind): number => bought.get(kind) ?? 0;
+  const timesBought = (kind: HintKind): number =>
+    (kind === 'name' ? nameShowing.size : (revealed.has(kind) ? 1 : 0));
+
+  /** The name can only sell as many letters as it has, which is never fewer than two. */
+  const limitFor = (kind: HintKind): number =>
+    (kind === 'name' ? Math.min(NAME_LETTERS, letterSpots(room.name).length) : 1);
 
   /** A room never got is worth nothing, however little was spent working on it. */
-  const points = (): number => {
-    if (state() === 'lost') return 0;
-    const spentOnHints = HINT_ORDER
-      .reduce((sum, kind) => sum + timesBought(kind) * HINT_COSTS[kind], 0);
-    return STARTING_POINTS - spentOnHints;
+  const points = (): number => (state() === 'lost' ? 0 : STARTING_POINTS - spentPoints);
+
+  /** Everything showing once the room is over, so nothing is held back on the reveal. */
+  const allNameSpots = (): Set<number> => new Set(letterSpots(room.name));
+
+  /** Uncovers one more letter of the name, wherever it falls. */
+  const showNameLetter = (): void => {
+    const left = letterSpots(room.name).filter((i) => !nameShowing.has(i));
+    if (left.length === 0) return;
+    nameShowing.add(left[Math.floor(random() * left.length)] as number);
   };
 
-  const record = (): PlayedRoom => ({ room, solved, guessesUsed: spent, points: points() });
+  const show = (kind: HintKind): void => {
+    if (kind === 'name') showNameLetter();
+    else revealed.add(kind);
+  };
+
+  const record = (): PlayedRoom => ({ room, solved, guessesUsed: used, points: points() });
 
   /** The room in play counts towards the round as soon as it is finished with. */
   const roundResults = (): PlayedRoom[] => {
@@ -262,47 +295,53 @@ export function createSession(options: SessionOptions): Session {
   const draw = (): void => {
     finished.push(record());
     room = bag.take();
-    spent = 0;
+    used = 0;
     solved = false;
     gaveUp = false;
-    bought = new Map();
+    revealed = new Set();
+    nameShowing = new Set();
+    spentPoints = 0;
     grade = null;
     asked += 1;
   };
 
   /** What has been bought, in a settled order however it was bought — or all of it, once
    * the room is over and there is nothing left to give away. */
-  const revealed = (): Hint[] => {
+  const onShow = (): Hint[] => {
     const playing = state() === 'guessing';
     const shown = playing ? HINT_ORDER.filter((k) => timesBought(k) > 0) : HINT_ORDER;
-    // A room that is over has nothing left to sell, so the name shows every letter it would.
-    const letters = playing ? timesBought('name') : NAME_LETTERS;
+    // A room that is over has nothing left to hold back, name included.
+    const letters = playing ? nameShowing : allNameSpots();
     return shown.map((kind) => hintFor(kind, room, letters));
   };
+
+  const mask = (): string =>
+    nameHint(room.name, state() === 'guessing' ? nameShowing : allNameSpots());
 
   const requirePlaying = () => {
     if (state() !== 'guessing') throw new Error('This room is already over');
   };
 
   const spend = () => {
-    spent += 1;
+    used += 1;
     totalGuesses += 1;
   };
 
   return {
     current: () => room,
     state,
-    guessesLeft: () => Math.max(MAX_GUESSES - spent, 0),
+    guessesUsed: () => used,
     points,
     roundPoints: () => roundResults().reduce((sum, r) => sum + r.points, 0),
-    hints: revealed,
+    hints: onShow,
     group: () => equivalenceGroup(room, settings),
     lastGrade: () => grade,
 
-    nameLetters: () => timesBought('name'),
+    nameLetters: () => nameShowing.size,
+    nameMask: mask,
 
     offers: () => HINT_ORDER.map((kind) => {
-      const spent = timesBought(kind) >= HINT_LIMITS[kind];
+      const spent = timesBought(kind) >= limitFor(kind);
       return {
         kind,
         label: HINT_LABELS[kind],
@@ -314,31 +353,30 @@ export function createSession(options: SessionOptions): Session {
 
     buyHint(kind) {
       requirePlaying();
-      if (timesBought(kind) >= HINT_LIMITS[kind]) {
+      if (timesBought(kind) >= limitFor(kind)) {
         throw new Error(`The ${kind} hint has already been bought`);
       }
-      // Unreachable at the shipped prices, which total less than a room is worth. It is the
-      // invariant that matters: no hint may be had for points that are not there.
       if (HINT_COSTS[kind] > points()) {
         throw new Error(`Not enough points left for the ${kind} hint`);
       }
-      bought.set(kind, timesBought(kind) + 1);
+      spentPoints += HINT_COSTS[kind];
+      show(kind);
     },
 
     /**
-     * Graded against every room that paints the same pixels, not just the one asked about:
-     * when two rooms are indistinguishable there is nothing on screen that could separate
-     * them, so both answers are right.
+     * Only the room on screen is the right answer. Look-alikes used to count, on the grounds
+     * that nothing on screen separated them — but the hints do separate them now, and any of
+     * them can be bought, so naming the wrong twin is a wrong answer like any other. The
+     * group still comes back, to name the twins on the reveal.
      */
     guess(input) {
       requirePlaying();
       const named = resolveName(input, index);
-      const group = equivalenceGroup(room, settings);
       const result: Grade = {
-        correct: named !== null && group.some((r) => r.id === named.id),
+        correct: named !== null && named.id === room.id,
         recognised: named !== null,
         answer: named,
-        group,
+        group: equivalenceGroup(room, settings),
         suggestion: named === null ? (suggestName(input, index)?.room ?? null) : null,
       };
       grade = result;
@@ -350,7 +388,13 @@ export function createSession(options: SessionOptions): Session {
       if (result.correct) {
         solved = true;
         totalSolved += 1;
+        return result;
       }
+
+      // Being wrong costs ten, and throws in the next hint there is to give.
+      spentPoints += WRONG_GUESS_COST;
+      const consolation = AUTO_HINTS.find((kind) => timesBought(kind) === 0);
+      if (consolation) show(consolation);
       return result;
     },
 

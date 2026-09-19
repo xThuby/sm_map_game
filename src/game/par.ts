@@ -1,16 +1,15 @@
 import { visualSignature } from '../signature';
-import { MAX_GUESSES } from './session';
 import { loadRooms } from '../rooms';
 import overrideData from '../../data/par-overrides.json';
 import type { RenderSettings, Room } from '../types';
-
-/** A room nothing distinguishes is worth the full set of guesses. */
-export const MAX_PAR = MAX_GUESSES;
 
 /** What a player has to go on, in the order the hints arrive. */
 export type ParStep = 'shape' | 'area' | 'enemies' | 'neighbour';
 
 export const PAR_STEPS: ParStep[] = ['shape', 'area', 'enemies', 'neighbour'];
+
+/** A room nothing distinguishes is worth a guess for the shape plus one for every step. */
+export const MAX_PAR = PAR_STEPS.length + 1;
 
 export interface ParOverride {
   par: number;

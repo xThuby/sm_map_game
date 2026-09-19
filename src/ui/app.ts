@@ -1,4 +1,4 @@
-import { createSession, MAX_GUESSES, ROUND_LENGTH, nameHint } from '../game/session';
+import { createSession, ROUND_LENGTH } from '../game/session';
 import type { HintKind, Session } from '../game/session';
 import { buildNameIndex, autocomplete } from '../game/matching';
 import { loadRooms, guessableRooms } from '../rooms';
@@ -91,8 +91,8 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       </div>
       <div data-role="right" style="flex:1 1 340px;position:sticky;top:16px">
         <p>
-          <span data-role="guesses" style="margin-right:16px"></span>
           <span data-role="points" style="margin-right:16px"></span>
+          <span data-role="total" style="margin-right:16px"></span>
           <span data-role="par"></span>
         </p>
         <p>
@@ -143,7 +143,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   const pointsLabel = el<HTMLSpanElement>('[data-role=points]');
   const viewing = el<HTMLSpanElement>('[data-role=viewing]');
   const par = el<HTMLSpanElement>('[data-role=par]');
-  const guessesLabel = el<HTMLSpanElement>('[data-role=guesses]');
+  const totalLabel = el<HTMLSpanElement>('[data-role=total]');
   const summary = el<HTMLElement>('[data-role=summary]');
   const newRoundButton = el<HTMLButtonElement>('button[data-action=new-round]');
 
@@ -215,11 +215,27 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       >reveal ${what} ${offer.cost}</button>`;
   }
 
+  /** Where in the played rooms the one on screen sits. Negative is not possible. */
+  function viewedIndex(): number {
+    return session.played().length - lookingBack;
+  }
+
   /** The points on the room being looked at, which is the one in play unless looking back. */
   function viewedPoints(): number {
     if (lookingBack === 0) return session.points();
-    const finished = session.played();
-    return (finished[finished.length - lookingBack] as PlayedRoom).points;
+    return (session.played()[viewedIndex()] as PlayedRoom).points;
+  }
+
+  /**
+   * The round's total as it stood when the room on screen was finished with — not as it
+   * stands now, which would be a different room's story. Rounds are a fixed length, so where
+   * one starts in the played rooms falls straight out of the index.
+   */
+  function totalSoFar(): number {
+    if (lookingBack === 0) return session.roundPoints();
+    const at = viewedIndex();
+    const start = Math.floor(at / ROUND_LENGTH) * ROUND_LENGTH;
+    return session.played().slice(start, at + 1).reduce((sum, r) => sum + r.points, 0);
   }
 
   /** Each room is drawn as large as it will go without running off the page. */
@@ -261,13 +277,12 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
   }
 
   function drawStatus(): void {
-    // Where you are in the round. How it went is the summary's job.
-    //
-    // A round's results count the room in play the moment it is finished with, which is not
-    // the same as having moved off it: you are still on room one until you press Next.
-    const done = session.roundResults().length;
-    const place = session.state() === 'guessing' ? done + 1 : done;
-    score.textContent = `Room ${place} of ${ROUND_LENGTH}`;
+    // Which room on screen is, counting within its own round. Rooms already played sit in
+    // one flat list and every round is the same length, so the place falls out of the index:
+    // the room in play is the one after the last one filed away, and looking back walks it
+    // backwards with you.
+    const place = (((viewedIndex()) % ROUND_LENGTH) + ROUND_LENGTH) % ROUND_LENGTH;
+    score.textContent = `Room ${place + 1} of ${ROUND_LENGTH}`;
     par.textContent = `Par ${parByRoom.get(viewedRoom().id) ?? 1}`;
 
     const back = lookingBack > 0;
@@ -276,8 +291,10 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
     viewing.textContent = back
       ? `Looking back at ${viewedRoom().name} — right arrow to return`
       : '';
-    guessesLabel.textContent = !back && !over ? `${plural(session.guessesLeft(), 'guess')} left` : '';
     pointsLabel.textContent = plural(viewedPoints(), 'point');
+    // The total is what the round is worth so far, which only means something once the room
+    // on screen has been finished with.
+    totalLabel.textContent = back || over ? `Round so far: ${totalSoFar()}` : '';
 
     // Looking back is read-only: that room is already finished with.
     const roundOver = session.roundComplete();
@@ -297,7 +314,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       roomId: session.current().id,
       roomName: session.current().name,
       solved: session.state() === 'solved',
-      guessesUsed: MAX_GUESSES - session.guessesLeft(),
+      guessesUsed: session.guessesUsed(),
       points: session.points(),
     };
     allTime = recordRoom(allTime, outcome);
@@ -379,7 +396,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
 
     // Masked from the start rather than hidden: the shape of a name is free, and it is
     // something to work with before any letter of it has been paid for.
-    roomName.textContent = over ? room.name : nameHint(room.name, session.nameLetters());
+    roomName.textContent = over ? room.name : session.nameMask();
     // The name's price sits beside the name rather than in the list below it.
     nameLine.querySelector('button[data-action=buy]')?.remove();
     nameLine.insertAdjacentHTML('beforeend', priceTag('name'));
@@ -488,13 +505,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): App {
       return;
     }
 
-    if (grade.correct) {
-      verdict.textContent = grade.answer && grade.answer.id !== session.current().id
-        ? `Correct — ${grade.answer.name} is indistinguishable from this room.`
-        : 'Correct.';
-    } else {
-      verdict.textContent = 'Incorrect.';
-    }
+    verdict.textContent = grade.correct ? 'Correct.' : 'Incorrect.';
     input.value = '';
     redraw();
   }

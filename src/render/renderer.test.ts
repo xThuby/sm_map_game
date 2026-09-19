@@ -7,6 +7,7 @@ const room = (width: number, height: number) => ({ width, height });
 
 describe('fitTileSize', () => {
   it('draws a small room at full size', () => {
+    expect(MAX_TILE_SIZE).toBe(128);
     expect(fitTileSize(room(1, 1), VIEWPORT)).toBe(MAX_TILE_SIZE);
     expect(fitTileSize(room(4, 3), VIEWPORT)).toBe(MAX_TILE_SIZE);
   });

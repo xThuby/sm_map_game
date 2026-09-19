@@ -4,8 +4,9 @@ import type { RenderSettings, Room } from '../types';
  * Tile sizes are whole multiples of 8, so every source pixel stays a whole number of screen
  * pixels and the art never blurs.
  */
-export const MAX_TILE_SIZE = 96;
 export const MIN_TILE_SIZE = 32;
+/** Four times the smallest a room is ever drawn — a whole multiple, so nothing blurs. */
+export const MAX_TILE_SIZE = MIN_TILE_SIZE * 4;
 
 /** The box a room is drawn to fit inside. */
 export const VIEWPORT = { width: 760, height: 620 };
