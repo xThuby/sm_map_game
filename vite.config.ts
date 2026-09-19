@@ -8,6 +8,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   base: '/sm_map_game/',
   test: {
-    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    // Deliberately broad: a narrower list once silently skipped tools/, and a test file that
+    // is never collected is worse than one that fails.
+    include: ['**/*.test.ts'],
   },
 });

@@ -12,6 +12,9 @@
     "noUncheckedIndexedAccess": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // tools/*.ts run directly under `node`, whose type stripping needs explicit
+    // .ts specifiers. Safe here because nothing is emitted.
+    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "noEmit": true
