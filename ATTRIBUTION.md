@@ -9,6 +9,16 @@ The room data in `data/raw/` — `map_tiles.json` and `room_geometry.json` — i
 from [blkerby/MapRandomizer](https://github.com/blkerby/MapRandomizer), pinned at commit
 `ea03c0aa21f3792e6ca354ec7c4257351befad4b`.
 
+`data/raw/tile_art.json` is the map tile artwork, mechanically extracted from that commit's
+`rust/maprando/src/patch/map_tiles.rs` (`render_tile`). `src/render/pixelRenderer.ts` is a
+port of `render_tile` and `draw_edge` from the same file.
+
+The palette in `src/render/palette.ts` was measured rather than copied: the SNES stores map
+tiles as palette indices and swaps the palette per region, so the colours live in the ROM. No
+ROM data is redistributed here. The values were recovered by rendering the vanilla map with
+this project's own renderer and reading back the colours at each pixel from Map Rando's
+published render of that map, and are reproduced here as measurements of a public image.
+
 ```
 MIT License
 
