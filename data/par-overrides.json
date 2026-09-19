@@ -1,0 +1,13 @@
+{
+  "_note": "Hand-set par values, for rooms where the computed one asks for something no player would reasonably know. Deliberately manual: the same surface reasoning would wrongly catch rooms players genuinely have memorised, so each of these is a judgement rather than a rule.",
+  "overrides": {
+    "East Aqueduct Quicksand Room": {
+      "par": 4,
+      "why": "Separated from West Aqueduct Quicksand Room only by enemy count, 6 against 7 of the same enemy. Nobody knows that by heart."
+    },
+    "West Aqueduct Quicksand Room": {
+      "par": 4,
+      "why": "Separated from East Aqueduct Quicksand Room only by enemy count, 7 against 6 of the same enemy. Nobody knows that by heart."
+    }
+  }
+}

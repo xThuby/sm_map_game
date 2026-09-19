@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parFor, parBreakdown, allPars, MAX_PAR } from './par';
+import { parFor, parBreakdown, allPars, MAX_PAR, PAR_OVERRIDES } from './par';
 import { loadRooms, guessableRooms, roomByName } from '../rooms';
 import { DEFAULT_RENDER_SETTINGS } from '../render/renderer';
 
@@ -109,5 +109,69 @@ describe('the whole game', () => {
   it('only assigns par to rooms that are actually asked about', () => {
     const asked = new Set(pool.map((r) => r.id));
     expect(loadRooms().length).toBeGreaterThan(asked.size);
+  });
+});
+
+describe('hand-set par', () => {
+  const overrides = {
+    'East Aqueduct Quicksand Room': { par: 4, why: 'counts too close to tell apart' },
+  };
+
+  it('uses the hand-set value in place of the computed one', () => {
+    const room = roomByName('East Aqueduct Quicksand Room')!;
+    const plain = parBreakdown(room, pool, settings);
+    const set = parBreakdown(room, pool, settings, overrides);
+    expect(plain.par).toBe(3);
+    expect(set.par).toBe(4);
+  });
+
+  it('keeps the computed value alongside it, and says why it was changed', () => {
+    const set = parBreakdown(roomByName('East Aqueduct Quicksand Room')!, pool, settings, overrides);
+    expect(set.computedPar).toBe(3);
+    expect(set.override?.why).toMatch(/counts too close/);
+  });
+
+  it('leaves every other room alone', () => {
+    const room = roomByName('Metroid Room 1')!;
+    expect(parBreakdown(room, pool, settings, overrides).par)
+      .toBe(parBreakdown(room, pool, settings).par);
+    expect(parBreakdown(room, pool, settings, overrides).override).toBeNull();
+  });
+
+  /** A value keyed by a room that does not exist would otherwise vanish without a word. */
+  it('rejects an override for a room that does not exist', () => {
+    expect(() => allPars(pool, settings, { 'Nowhere Room': { par: 4, why: 'x' } }))
+      .toThrow(/Nowhere Room/);
+  });
+
+  it('rejects a par outside the range a player could actually spend', () => {
+    const bad = { 'Metroid Room 1': { par: 9, why: 'x' } };
+    expect(() => allPars(pool, settings, bad)).toThrow(/9/);
+  });
+});
+
+describe('the shipped overrides', () => {
+  /**
+   * The computation settles these on the enemies hint, 6 against 7 of the same enemy. Par 4
+   * says the neighbour hint is what should really settle them.
+   */
+  it('lifts both Aqueduct Quicksand Rooms from 3 to 4', () => {
+    const pars = new Map(allPars(pool, settings, PAR_OVERRIDES).map((p) => [p.room.name, p]));
+    for (const n of ['East Aqueduct Quicksand Room', 'West Aqueduct Quicksand Room']) {
+      expect(pars.get(n)?.par, n).toBe(4);
+      expect(pars.get(n)?.computedPar, n).toBe(3);
+      expect(pars.get(n)?.override, n).not.toBeNull();
+    }
+  });
+
+  /** Players really do memorise these, which is why the adjustment is not a blanket rule. */
+  it('leaves the Metroid rooms where the computation put them', () => {
+    const pars = new Map(allPars(pool, settings, PAR_OVERRIDES).map((p) => [p.room.name, p]));
+    expect(pars.get('Metroid Room 1')?.override).toBeNull();
+    expect(pars.get('Metroid Room 3')?.par).toBe(3);
+  });
+
+  it('names only rooms that exist', () => {
+    expect(() => allPars(pool, settings, PAR_OVERRIDES)).not.toThrow();
   });
 });

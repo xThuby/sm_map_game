@@ -1,5 +1,6 @@
 import { visualSignature } from '../signature';
 import { MAX_GUESSES } from './session';
+import overrideData from '../../data/par-overrides.json';
 import type { RenderSettings, Room } from '../types';
 
 /** A room nothing distinguishes is worth the full set of guesses. */
@@ -10,9 +11,30 @@ export type ParStep = 'shape' | 'area' | 'enemies' | 'neighbour';
 
 export const PAR_STEPS: ParStep[] = ['shape', 'area', 'enemies', 'neighbour'];
 
+export interface ParOverride {
+  par: number;
+  why: string;
+}
+
+/**
+ * Hand-set par values, for rooms where the computation asks for something no player would
+ * reasonably know.
+ *
+ * Deliberately a list rather than a rule. The Aqueduct Quicksand Rooms are told apart only
+ * by 6 against 7 of the same enemy, which nobody has memorised — but the same surface
+ * reasoning would also catch Metroid Room 1 and 3, where players genuinely do know the
+ * counts and positions. Only a judgement separates those two cases.
+ */
+export const PAR_OVERRIDES: Record<string, ParOverride> =
+  (overrideData as { overrides: Record<string, ParOverride> }).overrides;
+
 export interface ParBreakdown {
   room: Room;
+  /** What the room is worth, hand-set value included. */
   par: number;
+  /** What the hints alone imply, before any adjustment. */
+  computedPar: number;
+  override: ParOverride | null;
   /** The step that finally made the room unique, or null if nothing did. */
   resolvedBy: ParStep | null;
   steps: { hint: ParStep; confusable: Room[] }[];
@@ -47,10 +69,11 @@ export function parBreakdown(
   room: Room,
   pool: readonly Room[],
   settings: RenderSettings,
+  overrides: Record<string, ParOverride> = {},
 ): ParBreakdown {
   const steps: { hint: ParStep; confusable: Room[] }[] = [];
   let resolvedBy: ParStep | null = null;
-  let par = MAX_PAR;
+  let computedPar = MAX_PAR;
 
   for (const [level, hint] of PAR_STEPS.entries()) {
     const mine = describe(room, settings, level);
@@ -61,17 +84,37 @@ export function parBreakdown(
 
     if (confusable.length === 0) {
       resolvedBy = hint;
-      par = level + 1;
+      computedPar = level + 1;
       break;
     }
   }
-  return { room, par, resolvedBy, steps };
+
+  const override = overrides[room.name] ?? null;
+  return { room, par: override?.par ?? computedPar, computedPar, override, resolvedBy, steps };
 }
 
-export function parFor(room: Room, pool: readonly Room[], settings: RenderSettings): number {
-  return parBreakdown(room, pool, settings).par;
+export function parFor(
+  room: Room,
+  pool: readonly Room[],
+  settings: RenderSettings,
+  overrides: Record<string, ParOverride> = {},
+): number {
+  return parBreakdown(room, pool, settings, overrides).par;
 }
 
-export function allPars(pool: readonly Room[], settings: RenderSettings): ParBreakdown[] {
-  return pool.map((room) => parBreakdown(room, pool, settings));
+export function allPars(
+  pool: readonly Room[],
+  settings: RenderSettings,
+  overrides: Record<string, ParOverride> = {},
+): ParBreakdown[] {
+  // An override keyed by a room that does not exist, or set outside the guesses a player
+  // actually has, would otherwise quietly do nothing.
+  const names = new Set(pool.map((r) => r.name));
+  for (const [name, value] of Object.entries(overrides)) {
+    if (!names.has(name)) throw new Error(`Par override for unknown room ${JSON.stringify(name)}`);
+    if (!Number.isInteger(value.par) || value.par < 1 || value.par > MAX_PAR) {
+      throw new Error(`Par override for ${name} is ${value.par}, outside 1 to ${MAX_PAR}`);
+    }
+  }
+  return pool.map((room) => parBreakdown(room, pool, settings, overrides));
 }

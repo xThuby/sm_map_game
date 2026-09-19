@@ -1,4 +1,4 @@
-import { allPars } from '../game/par';
+import { allPars, PAR_OVERRIDES } from '../game/par';
 import type { ParBreakdown } from '../game/par';
 import { visualSignature } from '../signature';
 import { fitTileSize } from '../render/renderer';
@@ -48,7 +48,7 @@ const PREVIEW = { width: 260, height: 200 };
 const list = (xs: string[]) => (xs.length ? xs.join(', ') : 'none');
 
 function roomCard(entry: ParBreakdown, settings: RenderSettings, renderer: Renderer): HTMLElement {
-  const { room, par, resolvedBy, steps } = entry;
+  const { room, par, computedPar, override, resolvedBy, steps } = entry;
   const el = document.createElement('article');
   el.dataset['role'] = 'room';
   el.dataset['par'] = String(par);
@@ -64,6 +64,8 @@ function roomCard(entry: ParBreakdown, settings: RenderSettings, renderer: Rende
     <p><strong>${room.name}</strong>
        — par <span data-role="par">${par}</span>,
        settled by <span data-role="resolved-by">${resolvedBy ?? 'nothing'}</span></p>
+    ${override ? `<p data-role="override" style="color:#fc9">Set by hand from ${computedPar}:
+       ${override.why}</p>` : ''}
     <ul>
       <li>Area: ${room.area}</li>
       <li>Enemies: ${list(room.enemies.map((e) => (e.quantity > 1 ? `${e.quantity} ${e.name}` : e.name)))}</li>
@@ -88,7 +90,7 @@ function roomCard(entry: ParBreakdown, settings: RenderSettings, renderer: Rende
 export function mountParPage(root: HTMLElement, options: ParPageOptions): void {
   const { rooms, settings, renderer = pixelRenderer } = options;
   const groups = lookAlikeGroups(rooms, settings);
-  const entries = allPars(rooms, settings).filter((p) => p.par > 1);
+  const entries = allPars(rooms, settings, PAR_OVERRIDES).filter((p) => p.par > 1);
 
   root.innerHTML = `
     <h1>Par review</h1>
